@@ -113,7 +113,7 @@ import java.lang.reflect.InvocationTargetException;
  */
 public final class BluetoothAdapter {
     private static final String TAG = "BluetoothAdapter";
-    private static final boolean DBG = true;
+    private static final boolean DBG = false;
     private static final boolean VDBG = false;
 
     /**
