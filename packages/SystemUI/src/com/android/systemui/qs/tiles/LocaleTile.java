@@ -109,7 +109,7 @@ public class LocaleTile extends QSTile<QSTile.State> {
 
     @Override
     public int getMetricsCategory() {
-        return MetricsEvent.OWL_TILE;
+        return MetricsEvent.QS_LOCALE_TILE;
     }
 
     @Override
