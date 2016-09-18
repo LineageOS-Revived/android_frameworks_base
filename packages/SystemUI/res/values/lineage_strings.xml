@@ -30,4 +30,10 @@
     <string name="qs_data_sim_none">No SIM card</string>
     <string name="qs_data_sim_1">SIM 1</string>
     <string name="qs_data_sim_2">SIM 2</string>
+
+    <!-- Sound QS Tile -->
+    <string name="quick_settings_sound_label">Sound</string>
+    <string name="quick_settings_sound_ring">Ring</string>
+    <string name="quick_settings_sound_vibrate">Vibrate</string>
+    <string name="quick_settings_sound_dnd">Do not disturb</string>
 </resources>
