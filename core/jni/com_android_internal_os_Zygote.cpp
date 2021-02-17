@@ -82,8 +82,6 @@ static const char kZygoteClassName[] = "com/android/internal/os/Zygote";
 static jclass gZygoteClass;
 static jmethodID gCallPostForkChildHooks;
 
-static bool g_is_security_enforced = true;
-
 // Must match values in com.android.internal.os.Zygote.
 enum MountExternalKind {
   MOUNT_EXTERNAL_NONE = 0,
@@ -256,11 +254,6 @@ static void PreApplicationInit() {
 }
 
 static void SetUpSeccompFilter(uid_t uid) {
-  if (!g_is_security_enforced) {
-    ALOGI("seccomp disabled by setenforce 0");
-    return;
-  }
-
   // Apply system or app filter based on uid.
   if (uid >= AID_APP_START) {
     set_app_seccomp_filter();
@@ -803,7 +796,6 @@ namespace android {
 static void com_android_internal_os_Zygote_nativeSecurityInit(JNIEnv*, jclass) {
   // security_getenforce is not allowed on app process. Initialize and cache the value before
   // zygote forks.
-  g_is_security_enforced = security_getenforce();
 }
 
 static void com_android_internal_os_Zygote_nativePreApplicationInit(JNIEnv*, jclass) {
