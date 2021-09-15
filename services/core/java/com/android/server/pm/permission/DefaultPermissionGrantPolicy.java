@@ -705,6 +705,9 @@ final class DefaultPermissionGrantPolicy {
                         Intent.CATEGORY_APP_EMAIL, userId),
                 userId, CONTACTS_PERMISSIONS, CALENDAR_PERMISSIONS);
 
+        // Glimpse
+        grantPermissionsToSystemPackage(pm, "org.lineageos.glimpse.dev", userId, STORAGE_PERMISSIONS);
+
         // Voice interaction
         if (voiceInteractPackageNames != null) {
             for (String voiceInteractPackageName : voiceInteractPackageNames) {
