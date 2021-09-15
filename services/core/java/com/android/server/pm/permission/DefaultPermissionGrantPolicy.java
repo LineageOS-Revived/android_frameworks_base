@@ -694,6 +694,9 @@ public final class DefaultPermissionGrantPolicy {
         //grantPermissionsToPackage(pm, browserPackage, userId, false [> ignoreSystemPackage <],
                 //true [>whitelistRestrictedPermissions<], FOREGROUND_LOCATION_PERMISSIONS);
 
+        // Glimpse
+        grantPermissionsToSystemPackage(pm, "org.lineageos.glimpse.dev", userId, STORAGE_PERMISSIONS);
+
         // Voice interaction
         if (voiceInteractPackageNames != null) {
             for (String voiceInteractPackageName : voiceInteractPackageNames) {
