@@ -18,6 +18,32 @@ package com.android.server.connectivity;
 
 import static android.net.ConnectivityManager.PRIVATE_DNS_DEFAULT_MODE_FALLBACK;
 import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_OFF;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_ADGUARD;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_APPLIEDPRIVACY;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_CIRA;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_CLEANBROWSING;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_CLOUDFLARE;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_CZNIC;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_GOOGLE;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_MULLVAD;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_QUADNINE;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_RESTENA;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_SWITCH;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_TWNIC;
+import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_UNCENSOREDDNS;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_ADGUARD;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_APPLIEDPRIVACY;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_CIRA;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_CLEANBROWSING;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_CLOUDFLARE;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_CZNIC;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_GOOGLE;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_MULLVAD;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_QUADNINE;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_RESTENA;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_SWITCH;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_TWNIC;
+import static android.net.ConnectivityManager.PRIVATE_DNS_SPECIFIER_UNCENSOREDDNS;
 import static android.net.ConnectivityManager.PRIVATE_DNS_MODE_PROVIDER_HOSTNAME;
 import static android.provider.Settings.Global.DNS_RESOLVER_MAX_SAMPLES;
 import static android.provider.Settings.Global.DNS_RESOLVER_MIN_SAMPLES;
@@ -134,6 +160,46 @@ public class DnsManager {
         if (PRIVATE_DNS_MODE_PROVIDER_HOSTNAME.equals(mode)) {
             final String specifier = getStringSetting(cr, PRIVATE_DNS_SPECIFIER);
             return new PrivateDnsConfig(specifier, null);
+        }
+
+        if (PRIVATE_DNS_MODE_ADGUARD.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_ADGUARD, null);
+        }
+        if (PRIVATE_DNS_MODE_APPLIEDPRIVACY.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_APPLIEDPRIVACY, null);
+        }
+        if (PRIVATE_DNS_MODE_CIRA.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_CIRA, null);
+        }
+        if (PRIVATE_DNS_MODE_CLEANBROWSING.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_CLEANBROWSING, null);
+        }
+        if (PRIVATE_DNS_MODE_CLOUDFLARE.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_CLOUDFLARE, null);
+        }
+        if (PRIVATE_DNS_MODE_CZNIC.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_CZNIC, null);
+        }
+        if (PRIVATE_DNS_MODE_GOOGLE.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_GOOGLE, null);
+        }
+        if (PRIVATE_DNS_MODE_MULLVAD.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_MULLVAD, null);
+        }
+        if (PRIVATE_DNS_MODE_QUADNINE.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_QUADNINE, null);
+        }
+        if (PRIVATE_DNS_MODE_RESTENA.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_RESTENA, null);
+        }
+        if (PRIVATE_DNS_MODE_SWITCH.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_SWITCH, null);
+        }
+        if (PRIVATE_DNS_MODE_TWNIC.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_TWNIC, null);
+        }
+        if (PRIVATE_DNS_MODE_UNCENSOREDDNS.equals(mode)) {
+            return new PrivateDnsConfig(PRIVATE_DNS_SPECIFIER_UNCENSOREDDNS, null);
         }
 
         return new PrivateDnsConfig(useTls);

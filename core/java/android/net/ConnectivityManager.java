@@ -799,11 +799,115 @@ public class ConnectivityManager {
     /**
      * @hide
      */
+    public static final String PRIVATE_DNS_MODE_ADGUARD = "adguard";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_APPLIEDPRIVACY = "appliedprivacy";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_CLEANBROWSING = "cleanbrowsing";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_CIRA = "cira";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_CZNIC = "cznic";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_CLOUDFLARE = "cloudflare";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_GOOGLE = "google";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_MULLVAD = "mullvad";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_QUADNINE = "quadnine";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_RESTENA = "restena";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_SWITCH = "switch";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_TWNIC = "twnic";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_MODE_UNCENSOREDDNS = "uncensoreddns";
+    /**
+     * @hide
+     */
     public static final String PRIVATE_DNS_MODE_OPPORTUNISTIC = "opportunistic";
     /**
      * @hide
      */
     public static final String PRIVATE_DNS_MODE_PROVIDER_HOSTNAME = "hostname";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_APPLIEDPRIVACY = "dot1.applied-privacy.net";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_ADGUARD = "dns.adguard.com";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_CIRA = "protected.canadianshield.cira.ca";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_CZNIC = "odvr.nic.cz";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_CLEANBROWSING = "security-filter-dns.cleanbrowsing.org";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_CLOUDFLARE = "security.cloudflare-dns.com";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_GOOGLE = "dns.google";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_MULLVAD = "adblock.doh.mullvad.net";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_QUADNINE = "dns.quad9.net";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_RESTENA = "kaitain.restena.lu";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_SWITCH = "dns.switch.ch";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_TWNIC = "101.101.101.101";
+    /**
+     * @hide
+     */
+    public static final String PRIVATE_DNS_SPECIFIER_UNCENSOREDDNS = "anycast.censurfridns.dk";
     /**
      * The default Private DNS mode.
      *
