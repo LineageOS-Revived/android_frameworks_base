@@ -22,6 +22,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Build;
+import android.os.SystemProperties;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyManager;
@@ -195,6 +196,23 @@ public class DeviceInfoUtils {
                 // broken parse; fall through and use the raw string
             }
             return patch;
+        } else {
+            return null;
+        }
+    }
+
+   public static String getCustomPatch() {
+        String customPatch = SystemProperties.get("ro.cm.custom_version");
+        if (!"".equals(customPatch)) {
+            try {
+                SimpleDateFormat template = new SimpleDateFormat("yyyy-MM-dd");
+                Date patchDate = template.parse(customPatch);
+                String format = DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMMyyyy");
+                customPatch = DateFormat.format(format, patchDate).toString();
+            } catch (ParseException e) {
+                // broken parse; fall through and use the raw string
+            }
+            return customPatch;
         } else {
             return null;
         }
