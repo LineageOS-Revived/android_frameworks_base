@@ -136,53 +136,15 @@ class AuthRippleController @Inject constructor(
     }
 
     private fun showUnlockedRipple() {
-        notificationShadeWindowController.setForcePluginOpen(true, this)
-        val lightRevealScrim = statusBar.lightRevealScrim
-        if (statusBarStateController.isDozing || biometricUnlockController.isWakeAndUnlock) {
-            circleReveal?.let {
-                lightRevealScrim?.revealEffect = it
-                startLightRevealScrimOnKeyguardFadingAway = true
-            }
-        }
-
-        mView.startUnlockedRipple(
-            /* end runnable */
-            Runnable {
-                notificationShadeWindowController.setForcePluginOpen(false, this)
-            }
-        )
+        return
     }
 
     override fun onKeyguardFadingAwayChanged() {
-        if (keyguardStateController.isKeyguardFadingAway) {
-            val lightRevealScrim = statusBar.lightRevealScrim
-            if (startLightRevealScrimOnKeyguardFadingAway && lightRevealScrim != null) {
-                ValueAnimator.ofFloat(.1f, 1f).apply {
-                    interpolator = Interpolators.LINEAR_OUT_SLOW_IN
-                    duration = RIPPLE_ANIMATION_DURATION
-                    startDelay = keyguardStateController.keyguardFadingAwayDelay
-                    addUpdateListener { animator ->
-                        if (lightRevealScrim.revealEffect != circleReveal) {
-                            // if something else took over the reveal, let's do nothing.
-                            return@addUpdateListener
-                        }
-                        lightRevealScrim.revealAmount = animator.animatedValue as Float
-                    }
-                    addListener(object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: Animator?) {
-                            // Reset light reveal scrim to the default, so the StatusBar
-                            // can handle any subsequent light reveal changes
-                            // (ie: from dozing changes)
-                            if (lightRevealScrim.revealEffect == circleReveal) {
-                                lightRevealScrim.revealEffect = LiftReveal
-                            }
-                        }
-                    })
-                    start()
-                }
-                startLightRevealScrimOnKeyguardFadingAway = false
-            }
-        }
+        // reset and hide the scrim so it doesn't appears on
+        // the next notification shade usage
+        statusBar.lightRevealScrim?.revealAmount = 1f
+        startLightRevealScrimOnKeyguardFadingAway = false
+        return
     }
 
     override fun onStartedGoingToSleep() {
