@@ -5244,13 +5244,6 @@ public final class Settings {
          */
         public static final String THREE_FINGER_GESTURE = "three_finger_gesture";
 
-        /**
-         * Gesture navbar length mode.
-         * Supported modes: 0 for normal length, 1 for medium and 2 for long.
-         * @hide
-         */
-        public static final String GESTURE_NAVBAR_LENGTH_MODE = "gesture_navbar_length_mode";
-
         /** @hide */
         public static final String BACK_GESTURE_HEIGHT = "back_gesture_height";
 
