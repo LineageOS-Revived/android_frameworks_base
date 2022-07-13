@@ -85,7 +85,7 @@ public class ThemeOverlayController extends SystemUI {
     static final String KEY_BERRY_BLACK_THEME =
             "lineagesystem:" + LineageSettings.System.BERRY_BLACK_THEME;
     static final String OVERLAY_BERRY_BLACK_THEME =
-            "org.lineageos.overlay.customization.blacktheme";
+            "com.android.system.theme.amoledblack";
     private final TunerService.Tunable mTunable =
             new TunerService.Tunable() {
                 @Override
