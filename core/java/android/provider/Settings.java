@@ -14497,6 +14497,15 @@ public final class Settings {
          */
         public static final String NR_NSA_TRACKING_SCREEN_OFF_MODE =
                 "nr_nsa_tracking_screen_off_mode";
+
+        /**
+         * Force disable Secure User Plane Location (SUPL), 0 or 1.
+         * @hide
+         */
+        public static final String FORCE_DISABLE_SUPL = "force_disable_supl";
+
+        /** @hide */
+        public static final int FORCE_DISABLE_SUPL_DEFAULT = 0;
     }
 
     /**
