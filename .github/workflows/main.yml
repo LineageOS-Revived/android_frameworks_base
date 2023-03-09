@@ -23,6 +23,10 @@ jobs:
         git rebase FETCH_HEAD
         git push -f
 
+        git checkout lineage-19.1-nospoof
+        git rebase FETCH_HEAD
+        git push -f
+
         git checkout lineage-20.0
         git fetch https://github.com/LineageOS/android_frameworks_base.git lineage-20.0
         git rebase FETCH_HEAD
