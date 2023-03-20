@@ -317,7 +317,7 @@ public class GpsNetInitiatedHandler {
                 Log.e(TAG, "RemoteException in sendNiResponse");
             }
         }
-        if (notif.needNotify) {
+        if (true) {
         // If NI does not need verify or the dialog is not requested
         // to pop up immediately, the dialog box will not pop up.
             if (notif.needVerify && mPopupImmediately) {
