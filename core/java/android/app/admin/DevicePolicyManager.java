@@ -423,7 +423,7 @@ public class DevicePolicyManager {
      *
      * @hide
      */
-    public static final long DEFAULT_STRONG_AUTH_TIMEOUT_MS = 72 * 60 * 60 * 1000; // 72h
+    public static final long DEFAULT_STRONG_AUTH_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 72h
 
     /**
      * A {@link android.os.Parcelable} extra of type {@link android.os.PersistableBundle} that
@@ -2019,7 +2019,7 @@ public class DevicePolicyManager {
      */
     public int getPasswordMaximumLength(int quality) {
         // Kind-of arbitrary.
-        return 16;
+        return 64;
     }
 
     /**
