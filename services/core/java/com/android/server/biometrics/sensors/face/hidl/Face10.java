@@ -73,6 +73,8 @@ import com.android.server.biometrics.sensors.face.LockoutHalImpl;
 import com.android.server.biometrics.sensors.face.ServiceProvider;
 import com.android.server.biometrics.sensors.face.UsageStats;
 
+import com.libremobileos.faceunlock.client.FaceUnlockHalManager;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -415,6 +417,11 @@ public class Face10 implements IHwBinder.DeathRecipient, ServiceProvider {
             Slog.w(TAG, "NoSuchElementException", e);
         } catch (RemoteException e) {
             Slog.e(TAG, "Failed to get face HAL", e);
+        }
+
+        if (mDaemon == null) {
+            Slog.i(TAG, "Loading software Face HAL");
+            mDaemon = FaceUnlockHalManager.getIBiometricsFace();
         }
 
         if (mDaemon == null) {
