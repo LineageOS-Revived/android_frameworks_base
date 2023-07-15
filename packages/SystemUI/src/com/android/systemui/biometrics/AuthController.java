@@ -40,6 +40,7 @@ import android.hardware.biometrics.BiometricPrompt;
 import android.hardware.biometrics.IBiometricSysuiReceiver;
 import android.hardware.biometrics.PromptInfo;
 import android.hardware.display.DisplayManager;
+import android.hardware.face.IFaceAuthenticatorsRegisteredCallback;
 import android.hardware.face.FaceManager;
 import android.hardware.face.FaceSensorPropertiesInternal;
 import android.hardware.fingerprint.FingerprintManager;
@@ -123,7 +124,7 @@ public class AuthController extends SystemUI implements CommandQueue.Callbacks,
     IBiometricSysuiReceiver mReceiver;
     @VisibleForTesting
     @NonNull final BiometricDisplayListener mOrientationListener;
-    @Nullable private final List<FaceSensorPropertiesInternal> mFaceProps;
+    @Nullable private List<FaceSensorPropertiesInternal> mFaceProps;
     @Nullable private List<FingerprintSensorPropertiesInternal> mFpProps;
     @Nullable private List<FingerprintSensorPropertiesInternal> mUdfpsProps;
     @Nullable private List<FingerprintSensorPropertiesInternal> mSidefpsProps;
@@ -156,6 +157,17 @@ public class AuthController extends SystemUI implements CommandQueue.Callbacks,
                             () -> handleEnrollmentsChanged(userId, sensorId, hasEnrollments));
                 }
             };
+
+    private final IFaceAuthenticatorsRegisteredCallback
+            mFaceAuthenticatorsRegisteredCallback =
+            new IFaceAuthenticatorsRegisteredCallback.Stub() {
+                @Override
+                public void onAllAuthenticatorsRegistered(
+                        List<FaceSensorPropertiesInternal> sensors) {
+                    mHandler.post(() -> handleAllFaceAuthenticatorsRegistered(sensors));
+                }
+            };
+
 
     @VisibleForTesting
     final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -242,6 +254,18 @@ public class AuthController extends SystemUI implements CommandQueue.Callbacks,
             cb.onAllAuthenticatorsRegistered();
         }
         mFingerprintManager.registerFingerprintStateListener(mFingerprintStateListener);
+    }
+
+    private void handleAllFaceAuthenticatorsRegistered(
+            List<FaceSensorPropertiesInternal> sensors) {
+        mExecution.assertIsMainThread();
+        if (DEBUG) {
+            Log.d(TAG, "handleAllFaceAuthenticatorsRegistered | sensors: " + Arrays.toString(
+                    sensors.toArray()));
+        }
+        mFaceProps = sensors;
+
+        updateSensorLocations();
     }
 
     private void handleEnrollmentsChanged(int userId, int sensorId, boolean hasEnrollments) {
@@ -501,8 +525,6 @@ public class AuthController extends SystemUI implements CommandQueue.Callbacks,
                     return Unit.INSTANCE;
                 });
 
-        mFaceProps = mFaceManager != null ? mFaceManager.getSensorPropertiesInternal() : null;
-
         int[] faceAuthLocation = context.getResources().getIntArray(
                 com.android.systemui.R.array.config_face_auth_props);
         if (faceAuthLocation == null || faceAuthLocation.length < 2) {
@@ -545,6 +567,10 @@ public class AuthController extends SystemUI implements CommandQueue.Callbacks,
         if (mFingerprintManager != null) {
             mFingerprintManager.addAuthenticatorsRegisteredCallback(
                     mFingerprintAuthenticatorsRegisteredCallback);
+        }
+        if (mFaceManager != null) {
+            mFaceManager.addAuthenticatorsRegisteredCallback(
+                    mFaceAuthenticatorsRegisteredCallback);
         }
 
         mTaskStackListener = new BiometricTaskStackListener();
