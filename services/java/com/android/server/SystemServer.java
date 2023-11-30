@@ -124,6 +124,7 @@ import com.android.server.display.DisplayManagerService;
 import com.android.server.display.color.ColorDisplayService;
 import com.android.server.dreams.DreamManagerService;
 import com.android.server.emergency.EmergencyAffordanceService;
+import com.android.server.gmscompat.AttestationService;
 import com.android.server.gpu.GpuService;
 import com.android.server.graphics.fonts.FontManagerService;
 import com.android.server.hdmi.HdmiControlService;
@@ -2965,6 +2966,10 @@ public final class SystemServer implements Dumpable {
         }
         t.traceEnd();
 
+        // AttestationService
+        t.traceBegin("AttestationService");
+        mSystemServiceManager.startService(AttestationService.class);
+        t.traceEnd();
         t.traceEnd(); // startOtherServices
     }
 
