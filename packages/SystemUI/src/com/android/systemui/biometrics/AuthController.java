@@ -265,7 +265,7 @@ public class AuthController extends SystemUI implements CommandQueue.Callbacks,
         }
         mFaceProps = sensors;
 
-        updateSensorLocations();
+        updateFingerprintLocation();
     }
 
     private void handleEnrollmentsChanged(int userId, int sensorId, boolean hasEnrollments) {
