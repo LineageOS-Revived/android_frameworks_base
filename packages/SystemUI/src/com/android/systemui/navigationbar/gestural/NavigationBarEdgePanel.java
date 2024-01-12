@@ -229,7 +229,6 @@ public class NavigationBarEdgePanel extends View implements NavigationEdgeBackPl
     private final Runnable mFailsafeRunnable = this::onFailsafe;
 
     private boolean mIsLongSwipeEnabled;
-    private boolean mBackArrowVisibility;
     private boolean mEdgeHapticEnabled;
 
     private DynamicAnimation.OnAnimationEndListener mSetGoneEndListener
@@ -430,11 +429,6 @@ public class NavigationBarEdgePanel extends View implements NavigationEdgeBackPl
     }
 
     @Override
-    public void setBackArrowVisibility(boolean backArrowVisibility) {
-        mBackArrowVisibility = backArrowVisibility;
-    }
-
-    @Override
     public void setEdgeHapticEnabled(boolean edgeHapticEnabled) {
         mEdgeHapticEnabled = edgeHapticEnabled;
     }
@@ -493,7 +487,7 @@ public class NavigationBarEdgePanel extends View implements NavigationEdgeBackPl
                 resetOnDown();
                 mStartX = event.getX();
                 mStartY = event.getY();
-                setVisibility(mBackArrowVisibility ? VISIBLE : INVISIBLE);
+                setVisibility(VISIBLE);
                 updatePosition(event.getY());
                 mRegionSamplingHelper.start(mSamplingRect);
                 mWindowManager.updateViewLayout(this, mLayoutParams);

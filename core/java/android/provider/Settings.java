@@ -10233,12 +10233,6 @@ public final class Settings {
         public static final String VOLUME_LINK_NOTIFICATION = "volume_link_notification";
 
         /**
-         * Whether to show or hide the arrow for back gesture
-         * @hide
-         */
-        public static final String BACK_GESTURE_ARROW = "back_gesture_arrow";
-
-        /**
          * Whether or not to vibrate when back gesture is used
          * @hide
          */

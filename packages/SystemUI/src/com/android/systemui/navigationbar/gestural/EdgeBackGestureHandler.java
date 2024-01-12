@@ -316,8 +316,6 @@ public class EdgeBackGestureHandler extends CurrentUserTracker
     };
 
 
-    private boolean mIsBackGestureArrowEnabled;
-
     private boolean mIsEdgeHapticEnabled;
 
     EdgeBackGestureHandler(Context context, OverviewProxyService overviewProxyService,
@@ -401,7 +399,6 @@ public class EdgeBackGestureHandler extends CurrentUserTracker
         mEdgeWidthRight = mGestureNavigationSettingsObserver.getRightSensitivity(res);
         mIsBackGestureAllowed =
                 !mGestureNavigationSettingsObserver.areNavigationButtonForcedVisible();
-        mIsBackGestureArrowEnabled = mGestureNavigationSettingsObserver.getBackArrowGesture();
         mIsEdgeHapticEnabled = mGestureNavigationSettingsObserver.getEdgeHapticEnabled();
 
         final DisplayMetrics dm = res.getDisplayMetrics();
@@ -824,7 +821,6 @@ public class EdgeBackGestureHandler extends CurrentUserTracker
                     && isWithinTouchRegion((int) ev.getX(), (int) ev.getY());
             if (mAllowGesture) {
                 mEdgeBackPlugin.setIsLeftPanel(mIsOnLeftEdge);
-                mEdgeBackPlugin.setBackArrowVisibility(mIsBackGestureArrowEnabled);
                 mEdgeBackPlugin.setEdgeHapticEnabled(mIsEdgeHapticEnabled);
                 mEdgeBackPlugin.onMotionEvent(ev);
             }
