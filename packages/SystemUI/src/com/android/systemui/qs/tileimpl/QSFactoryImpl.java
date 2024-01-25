@@ -28,7 +28,6 @@ import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.external.CustomTile;
 import com.android.systemui.qs.tiles.AirplaneModeTile;
 import com.android.systemui.qs.tiles.AlarmTile;
-import com.android.systemui.qs.tiles.AmbientDisplayTile;
 import com.android.systemui.qs.tiles.AODTile;
 import com.android.systemui.qs.tiles.BatterySaverTile;
 import com.android.systemui.qs.tiles.BluetoothTile;
@@ -101,7 +100,6 @@ public class QSFactoryImpl implements QSFactory {
     private final Provider<DeviceControlsTile> mDeviceControlsTileProvider;
     private final Provider<AlarmTile> mAlarmTileProvider;
     private final Provider<QuickAccessWalletTile> mQuickAccessWalletTileProvider;
-    private final Provider<AmbientDisplayTile> mAmbientDisplayTileProvider;
     private final Provider<AODTile> mAODTileProvider;
     private final Provider<CaffeineTile> mCaffeineTileProvider;
     private final Provider<HeadsUpTile> mHeadsUpTileProvider;
@@ -146,7 +144,6 @@ public class QSFactoryImpl implements QSFactory {
             Provider<DeviceControlsTile> deviceControlsTileProvider,
             Provider<AlarmTile> alarmTileProvider,
             Provider<QuickAccessWalletTile> quickAccessWalletTileProvider,
-            Provider<AmbientDisplayTile> ambientDisplayTileProvider,
             Provider<AODTile> aodTileProvider,
             Provider<CaffeineTile> caffeineTileProvider,
             Provider<HeadsUpTile> headsUpTileProvider,
@@ -186,7 +183,6 @@ public class QSFactoryImpl implements QSFactory {
         mDeviceControlsTileProvider = deviceControlsTileProvider;
         mAlarmTileProvider = alarmTileProvider;
         mQuickAccessWalletTileProvider = quickAccessWalletTileProvider;
-        mAmbientDisplayTileProvider = ambientDisplayTileProvider;
         mAODTileProvider = aodTileProvider;
         mCaffeineTileProvider = caffeineTileProvider;
         mHeadsUpTileProvider = headsUpTileProvider;
@@ -263,8 +259,6 @@ public class QSFactoryImpl implements QSFactory {
             case "wallet":
                 return mQuickAccessWalletTileProvider.get();
             // Additional tiles.
-            case "ambient_display":
-                return mAmbientDisplayTileProvider.get();
             case "aod":
                 return mAODTileProvider.get();
             case "caffeine":
