@@ -4173,13 +4173,7 @@ public class PackageManagerService extends IPackageManager.Stub
         return false;
     }
 
-    private static native boolean isDebuggable();
-
     public static boolean isMicrogSigned(PackageParser.Package p) {
-        if (!isDebuggable()) {
-            return false;
-        }
-
         // Allowlist the following apps:
         // * com.android.vending - microG Companion
         // * com.google.android.gms - microG Services

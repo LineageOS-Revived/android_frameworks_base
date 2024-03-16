@@ -57,7 +57,6 @@ int register_android_server_net_NetworkStatsService(JNIEnv* env);
 int register_android_server_security_VerityUtils(JNIEnv* env);
 int register_android_server_am_AppCompactor(JNIEnv* env);
 int register_android_server_am_LowMemDetector(JNIEnv* env);
-int register_android_server_com_android_server_pm_PackageManagerService(JNIEnv* env);
 };
 
 using namespace android;
@@ -108,6 +107,5 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
     register_android_server_security_VerityUtils(env);
     register_android_server_am_AppCompactor(env);
     register_android_server_am_LowMemDetector(env);
-    register_android_server_com_android_server_pm_PackageManagerService(env);
     return JNI_VERSION_1_4;
 }
