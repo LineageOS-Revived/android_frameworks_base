@@ -493,6 +493,10 @@ public class NotificationManagerService extends SystemService {
 
     private KeyguardManager mKeyguardManager;
 
+    // True if the toast that's on top of the queue is being shown at the moment.
+    @GuardedBy("mToastQueue")
+    private boolean mIsCurrentToastShown = false;
+
     // The last key in this list owns the hardware.
     ArrayList<String> mLights = new ArrayList<>();
 
@@ -3038,8 +3042,19 @@ public class NotificationManagerService extends SystemService {
                         mWindowManagerInternal.addWindowToken(windowToken, TYPE_TOAST, displayId);
                         record = getToastRecord(callingUid, callingPid, pkg, token, text, callback,
                                 duration, windowToken, displayId, textCallback);
-                        mToastQueue.add(record);
-                        index = mToastQueue.size() - 1;
+
+                        // Insert system toasts at the front of the queue
+                        int systemToastInsertIdx = mToastQueue.size();
+                        if (isSystemToast) {
+                            systemToastInsertIdx = getInsertIndexForSystemToastLocked();
+                        }
+                        if (systemToastInsertIdx < mToastQueue.size()) {
+                            index = systemToastInsertIdx;
+                            mToastQueue.add(index, record);
+                        } else {
+                            mToastQueue.add(record);
+                            index = mToastQueue.size() - 1;
+                        }
                         keepProcessAliveForToastIfNeededLocked(callingPid);
                     }
                     // If it's at index 0, it's the current toast.  It doesn't matter if it's
@@ -3053,6 +3068,24 @@ public class NotificationManagerService extends SystemService {
                     Binder.restoreCallingIdentity(callingId);
                 }
             }
+        }
+
+        @GuardedBy("mToastQueue")
+        private int getInsertIndexForSystemToastLocked() {
+            // If there are other system toasts: insert after the last one
+            int idx = 0;
+            for (ToastRecord r : mToastQueue) {
+                if (idx == 0 && mIsCurrentToastShown) {
+                    idx++;
+                    continue;
+                }
+                /* BACKPORT: In Android 11, Toastrecord does not have the attribute isSystemToast */
+                if (!isUidSystemOrPhone(r.uid) && !PackageManagerService.PLATFORM_PACKAGE_NAME.equals(r.pkg)) {
+                    return idx;
+                }
+                idx++;
+            }
+            return idx;
         }
 
         /**
@@ -7444,10 +7477,15 @@ public class NotificationManagerService extends SystemService {
 
     @GuardedBy("mToastQueue")
     void showNextToastLocked() {
+        if (mIsCurrentToastShown) {
+            return; // Don't show the same toast twice.
+        }
+
         ToastRecord record = mToastQueue.get(0);
         while (record != null) {
             if (record.show()) {
                 scheduleDurationReachedLocked(record);
+                mIsCurrentToastShown = true;
                 return;
             }
             int index = mToastQueue.indexOf(record);
@@ -7462,6 +7500,10 @@ public class NotificationManagerService extends SystemService {
     void cancelToastLocked(int index) {
         ToastRecord record = mToastQueue.get(index);
         record.hide();
+
+        if (index == 0) {
+            mIsCurrentToastShown = false;
+        }
 
         ToastRecord lastToast = mToastQueue.remove(index);
 
