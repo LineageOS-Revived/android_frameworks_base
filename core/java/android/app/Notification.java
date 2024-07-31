@@ -2486,29 +2486,22 @@ public class Notification implements Parcelable
             ArrayList<Person> people = extras.getParcelableArrayList(EXTRA_PEOPLE_LIST);
             if (people != null && !people.isEmpty()) {
                 for (Person p : people) {
-                    if (p.getIconUri() != null) {
-                        visitor.accept(p.getIconUri());
-                    }
+                    p.visitUris(visitor);
                 }
             }
 
             // Extras for MessagingStyle. We visit them even if not isStyle(MessagingStyle), since
             // Notification Listeners might use directly (without the isStyle check).
             final Person person = extras.getParcelable(EXTRA_MESSAGING_PERSON);
-            if (person != null && person.getIconUri() != null) {
-                visitor.accept(person.getIconUri());
+            if (person != null) {
+                person.visitUris(visitor);
             }
 
             final Parcelable[] messages = extras.getParcelableArray(EXTRA_MESSAGES);
             if (!ArrayUtils.isEmpty(messages)) {
                 for (MessagingStyle.Message message : MessagingStyle.Message
                         .getMessagesFromBundleArray(messages)) {
-                    visitor.accept(message.getDataUri());
-
-                    Person senderPerson = message.getSenderPerson();
-                    if (senderPerson != null && senderPerson.getIconUri() != null) {
-                        visitor.accept(senderPerson.getIconUri());
-                    }
+                    message.visitUris(visitor);
                 }
             }
 
@@ -2516,12 +2509,7 @@ public class Notification implements Parcelable
             if (!ArrayUtils.isEmpty(historic)) {
                 for (MessagingStyle.Message message : MessagingStyle.Message
                         .getMessagesFromBundleArray(historic)) {
-                    visitor.accept(message.getDataUri());
-
-                    Person senderPerson = message.getSenderPerson();
-                    if (senderPerson != null && senderPerson.getIconUri() != null) {
-                        visitor.accept(senderPerson.getIconUri());
-                    }
+                    message.visitUris(visitor);
                 }
             }
         }
@@ -7777,6 +7765,18 @@ public class Notification implements Parcelable
                     bundles[i] = messages.get(i).toBundle();
                 }
                 return bundles;
+            }
+
+            /**
+             * See {@link Notification#visitUris(Consumer)}.
+             *
+             * @hide
+             */
+            public void visitUris(@NonNull Consumer<Uri> visitor) {
+                visitor.accept(getDataUri());
+                if (mSender != null) {
+                    mSender.visitUris(visitor);
+                }
             }
 
             /**

@@ -761,6 +761,13 @@ public class RemoteViews implements Parcelable, Filter {
             return SET_REMOTE_VIEW_ADAPTER_LIST_TAG;
         }
 
+        @Override
+        public void visitUris(@NonNull Consumer<Uri> visitor) {
+            for (RemoteViews remoteViews : list) {
+                remoteViews.visitUris(visitor);
+            }
+        }
+
         int viewTypeCount;
         ArrayList<RemoteViews> list;
     }
