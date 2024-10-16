@@ -19,6 +19,7 @@ package com.android.systemui.media;
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
 import android.app.Activity;
+import android.app.ActivityTaskManager;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -63,11 +64,16 @@ public class MediaProjectionPermissionActivity extends Activity
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
 
-        mPackageName = getCallingPackage();
+        try {
+            mPackageName = ActivityTaskManager.getService().getLaunchedFromPackage(getActivityToken());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+
         IBinder b = ServiceManager.getService(MEDIA_PROJECTION_SERVICE);
         mService = IMediaProjectionManager.Stub.asInterface(b);
 
-        if (mPackageName == null) {
+        if (getCallingPackage() == null) {
             finish();
             return;
         }
