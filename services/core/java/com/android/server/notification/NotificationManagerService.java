@@ -474,7 +474,7 @@ public class NotificationManagerService extends SystemService {
 
     private static final int MY_UID = Process.myUid();
     private static final int MY_PID = Process.myPid();
-    private static final IBinder WHITELIST_TOKEN = new Binder();
+    static final IBinder WHITELIST_TOKEN = new Binder();
     private RankingHandler mRankingHandler;
     private long mLastOverRateLogTime;
     private float mMaxPackageEnqueueRate = DEFAULT_MAX_NOTIFICATION_ENQUEUE_RATE;
@@ -3285,7 +3285,7 @@ public class NotificationManagerService extends SystemService {
                     // Remove background token before returning notification to untrusted app, this
                     // ensures the app isn't able to perform background operations that are
                     // associated with notification interactions.
-                    notification.clearAllowlistToken();
+                    notification.overrideAllowlistToken(null);
                     return new StatusBarNotification(
                             sbn.getPackageName(),
                             sbn.getOpPkg(),
@@ -5040,6 +5040,15 @@ public class NotificationManagerService extends SystemService {
         // as "pkg"
         final int notificationUid = resolveNotificationUid(opPkg, pkg, callingUid, userId);
 
+        IBinder allowlistToken = notification.getAllowlistToken();
+        if (allowlistToken != null && allowlistToken != WHITELIST_TOKEN) {
+            throw new SecurityException(
+                    "Unexpected allowlist token received from " + callingUid);
+        }
+        // allowlistToken is populated by unparceling, so it can be null if the notification was
+        // posted from inside system_server. Ensure it's the expected value.
+        notification.overrideAllowlistToken(WHITELIST_TOKEN);
+
         checkRestrictedCategories(notification);
 
         // Fix the notification as best we can.
@@ -5751,6 +5760,11 @@ public class NotificationManagerService extends SystemService {
         @Override
         public void run() {
             synchronized (mNotificationLock) {
+                // allowlistToken is populated by unparceling, so it will be absent if the
+                // EnqueueNotificationRunnable is created directly by NMS (as we do for group
+                // summaries) instead of via notify(). Fix that.
+                r.getNotification().overrideAllowlistToken(WHITELIST_TOKEN);
+
                 mEnqueuedNotifications.add(r);
                 scheduleTimeoutLocked(r);
 
