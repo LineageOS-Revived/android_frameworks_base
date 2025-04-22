@@ -852,6 +852,14 @@ public class MediaSessionRecord implements IBinder.DeathRecipient, MediaSessionR
                         != 0) {
                     return;
                 }
+
+                if (pi != null && pi.isActivity()) {
+                    Log.w(
+                            TAG,
+                            "Ignoring invalid media button receiver targeting an activity: " + pi);
+                    return;
+                }
+
                 mMediaButtonReceiverHolder =
                         MediaButtonReceiverHolder.create(mContext, mUserId, pi);
                 mService.onMediaButtonReceiverChanged(MediaSessionRecord.this);

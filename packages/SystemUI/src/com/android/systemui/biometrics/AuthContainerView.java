@@ -16,6 +16,8 @@
 
 package com.android.systemui.biometrics;
 
+import static android.hardware.biometrics.BiometricPrompt.KEY_CLASS_CONFIRM_DEVICE_CRED;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -517,6 +519,12 @@ public class AuthContainerView extends LinearLayout
     @Override
     public String getOpPackageName() {
         return mConfig.mOpPackageName;
+    }
+
+    @Override
+    public String getClassNameIfItIsConfirmDeviceCredentialActivity() {
+        return mConfig.mBiometricPromptBundle
+                    .getCharSequence(KEY_CLASS_CONFIRM_DEVICE_CRED).toString();
     }
 
     @Override

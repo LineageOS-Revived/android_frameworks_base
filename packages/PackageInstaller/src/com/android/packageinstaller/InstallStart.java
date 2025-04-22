@@ -22,6 +22,7 @@ import android.Manifest;
 import android.annotation.Nullable;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.ActivityTaskManager;
 import android.app.AppGlobals;
 import android.content.ContentResolver;
 import android.content.Intent;
@@ -34,6 +35,7 @@ import android.content.pm.UserInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.UserManager;
 import android.permission.IPermissionManager;
@@ -61,7 +63,19 @@ public class InstallStart extends Activity {
         mIPermissionManager = AppGlobals.getPermissionManager();
         mUserManager = getSystemService(UserManager.class);
         Intent intent = getIntent();
-        String callingPackage = getCallingPackage();
+        String callingPackage;
+
+        try {
+            IBinder activityToken = getActivityToken();
+            callingPackage = ActivityTaskManager.getService().getLaunchedFromPackage(
+                    activityToken);
+        } catch (RemoteException re) {
+            // Couldn't figure out caller details
+            Log.w(getClass().getSimpleName(), "Unable to get caller identity \n" + re);
+            setResult(RESULT_CANCELED);
+            finish();
+            return;
+        }
 
         final boolean isSessionInstall =
                 PackageInstaller.ACTION_CONFIRM_INSTALL.equals(intent.getAction());
