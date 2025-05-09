@@ -86,6 +86,7 @@ import static android.app.admin.DevicePolicyManager.WIPE_EUICC;
 import static android.app.admin.DevicePolicyManager.WIPE_EXTERNAL_STORAGE;
 import static android.app.admin.DevicePolicyManager.WIPE_RESET_PROTECTION_DATA;
 import static android.app.admin.DevicePolicyManager.WIPE_SILENTLY;
+import static android.content.pm.PackageManager.GET_META_DATA;
 import static android.content.pm.PackageManager.MATCH_DIRECT_BOOT_AWARE;
 import static android.content.pm.PackageManager.MATCH_DIRECT_BOOT_UNAWARE;
 import static android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES;
@@ -2059,6 +2060,33 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
         }
     }
 
+    /**
+     * Check if the package hosting the given ActiveAdmin is still installed and well-formed.
+     */
+    @GuardedBy("getLockObject()")
+    private boolean isActiveAdminPackageValid(ActiveAdmin admin) throws RemoteException {
+        final String adminPackage = admin.info.getPackageName();
+        int userHandle = admin.getUserHandle().getIdentifier();
+        if (mIPackageManager.getPackageInfo(adminPackage, 0, userHandle) == null) {
+            Slog.e(LOG_TAG, adminPackage + " no longer installed");
+            return false;
+        }
+        ActivityInfo ai = mIPackageManager.getReceiverInfo(admin.info.getComponent(),
+                GET_META_DATA | MATCH_DIRECT_BOOT_AWARE | MATCH_DIRECT_BOOT_UNAWARE,
+                userHandle);
+        if (ai == null) {
+            Slog.e(LOG_TAG, adminPackage + " no longer has the receiver");
+            return false;
+        }
+        try {
+            new DeviceAdminInfo(mContext, ai);
+        } catch (Exception e) {
+            Log.e(LOG_TAG, adminPackage + " contains malformed metadata", e);
+            return false;
+        }
+        return true;
+    }
+
     private void handlePackagesChanged(@Nullable String packageName, int userHandle) {
         boolean removedAdmin = false;
         if (VERBOSE_LOG) {
@@ -2071,14 +2099,13 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
                 ActiveAdmin aa = policy.mAdminList.get(i);
                 try {
                     // If we're checking all packages or if the specific one we're checking matches,
-                    // then check if the package and receiver still exist.
+                    // then check if the package is still valid.
                     final String adminPackage = aa.info.getPackageName();
                     if (packageName == null || packageName.equals(adminPackage)) {
-                        if (mIPackageManager.getPackageInfo(adminPackage, 0, userHandle) == null
-                                || mIPackageManager.getReceiverInfo(aa.info.getComponent(),
-                                PackageManager.MATCH_DIRECT_BOOT_AWARE
-                                        | PackageManager.MATCH_DIRECT_BOOT_UNAWARE,
-                                userHandle) == null) {
+                        if (!isActiveAdminPackageValid(aa)) {
+                            Slog.e(LOG_TAG,
+                                   String.format("Admin package %s not found or invalid for user %d,"
+                                            + " removing active admin", packageName, userHandle));
                             removedAdmin = true;
                             policy.mAdminList.remove(i);
                             policy.mAdminMap.remove(aa.info.getComponent());
