@@ -1662,8 +1662,7 @@ public class VoiceInteractionManagerService extends SystemService {
                     }
                 }
                 if (hitInt && doit) {
-                    // The user is force stopping our current interactor.
-                    // Clear the current settings and restore default state.
+                    // The user is force stopping our current interactor, restart the service.
                     synchronized (VoiceInteractionManagerServiceStub.this) {
                         Slog.i(TAG, "Force stopping current voice interactor: "
                                 + getCurInteractor(userHandle));
@@ -1672,22 +1671,7 @@ public class VoiceInteractionManagerService extends SystemService {
                             mImpl.shutdownLocked();
                             setImplLocked(null);
                         }
-
-                        setCurInteractor(null, userHandle);
-                        setCurRecognizer(null, userHandle);
-                        resetCurAssistant(userHandle);
-                        initForUser(userHandle);
                         switchImplementationIfNeededLocked(true);
-
-                        Context context = getContext();
-                        context.getSystemService(RoleManager.class).clearRoleHoldersAsUser(
-                                RoleManager.ROLE_ASSISTANT, 0, UserHandle.of(userHandle),
-                                context.getMainExecutor(), successful -> {
-                                    if (!successful) {
-                                        Slog.e(TAG,
-                                                "Failed to clear default assistant for force stop");
-                                    }
-                                });
                     }
                 } else if (hitRec && doit) {
                     // We are just force-stopping the current recognizer, which is not
