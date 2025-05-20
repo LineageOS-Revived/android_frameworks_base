@@ -128,6 +128,7 @@ import android.app.admin.SecurityLog;
 import android.app.backup.IBackupManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.IIntentReceiver;
@@ -9080,7 +9081,13 @@ public class PackageManagerService extends IPackageManager.Stub
         if (!sUserManager.exists(userId)) return null;
         flags = updateFlagsForComponent(flags, userId, name);
         final int callingUid = Binder.getCallingUid();
-        final ProviderInfo providerInfo = mComponentResolver.queryProvider(name, flags, userId);
+
+        // Callers of this API may not always separate the userID and authority. Let's parse it
+        // before resolving
+        String authorityWithoutUserId = ContentProvider.getAuthorityWithoutUserId(name);
+        userId = ContentProvider.getUserIdFromAuthority(name, userId);
+        final ProviderInfo providerInfo = mComponentResolver.queryProvider(
+                authorityWithoutUserId, flags, userId);
         if (providerInfo == null) {
             return null;
         }

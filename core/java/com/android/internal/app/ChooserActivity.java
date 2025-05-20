@@ -16,6 +16,7 @@
 
 package com.android.internal.app;
 
+import static android.content.ContentProvider.getUriWithoutUserId;
 import static android.content.ContentProvider.getUserIdFromUri;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -30,6 +31,9 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.ActivityTaskManager;
+import android.app.IUriGrantsManager;
+import android.app.UriGrantsManager;
 import android.app.prediction.AppPredictionContext;
 import android.app.prediction.AppPredictionManager;
 import android.app.prediction.AppPredictor;
@@ -648,7 +652,11 @@ public class ChooserActivity extends ResolverActivity {
                     targets = null;
                     break;
                 }
-                targets[i] = (ChooserTarget) pa[i];
+                ChooserTarget chooserTarget = (ChooserTarget) pa[i];
+                if (!hasValidIcon(chooserTarget)) {
+                    chooserTarget = removeIcon(chooserTarget);
+                }
+                targets[i] = chooserTarget;
             }
             mCallerChooserTargets = targets;
         }
@@ -4052,5 +4060,44 @@ public class ChooserActivity extends ResolverActivity {
 
             canvas.drawRoundRect(x, y, width, height, mRadius, mRadius, mRoundRectPaint);
         }
+    }
+
+    private boolean hasValidIcon(ChooserTarget target) {
+        Icon icon = target.getIcon();
+        if (icon == null) {
+            return true;
+        }
+        if (icon.getType() == Icon.TYPE_URI) {
+            Uri uri = icon.getUri();
+            try {
+                getUriGrantsManager().checkGrantUriPermission_ignoreNonSystem(
+                        ActivityTaskManager.getService().getLaunchedFromUid(getActivityToken()),
+                        getPackageName(),
+                        getUriWithoutUserId(uri),
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        getUserIdFromUri(uri)
+                );
+            } catch (SecurityException | RemoteException e) {
+                Log.e(TAG, "Failed to get URI permission for: " + uri, e);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private IUriGrantsManager getUriGrantsManager() {
+        return UriGrantsManager.getService();
+    }
+
+    private static ChooserTarget removeIcon(ChooserTarget target) {
+        if (target == null) {
+            return null;
+        }
+        return new ChooserTarget(
+                target.getTitle(),
+                null,
+                target.getScore(),
+                target.getComponentName(),
+                target.getIntentExtras());
     }
 }

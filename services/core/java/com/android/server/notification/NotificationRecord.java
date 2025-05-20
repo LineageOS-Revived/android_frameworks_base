@@ -1190,14 +1190,14 @@ public final class NotificationRecord {
     protected void calculateGrantableUris() {
         final Notification notification = getNotification();
         notification.visitUris((uri) -> {
-            visitGrantableUri(uri, false);
+            visitGrantableUri(uri, false, false);
         });
 
         if (notification.getChannelId() != null) {
             NotificationChannel channel = getChannel();
             if (channel != null) {
                 visitGrantableUri(channel.getSound(), (channel.getUserLockedFields()
-                        & NotificationChannel.USER_LOCKED_SOUND) != 0);
+                        & NotificationChannel.USER_LOCKED_SOUND) != 0, true);
             }
         }
     }
@@ -1210,20 +1210,17 @@ public final class NotificationRecord {
      * {@link #mGrantableUris}. Otherwise, this will either log or throw
      * {@link SecurityException} depending on target SDK of enqueuing app.
      */
-    private void visitGrantableUri(Uri uri, boolean userOverriddenUri) {
-        if (uri == null || !ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) return;
+    private void visitGrantableUri(Uri uri, boolean userOverriddenUri, boolean isSound) {
+        if (mGrantableUris != null && mGrantableUris.contains(uri)) {
+            return; // already verified this URI
+        }
 
         // We can't grant Uri permissions from system
         final int sourceUid = sbn.getUid();
         if (sourceUid == android.os.Process.SYSTEM_UID) return;
 
-        final long ident = Binder.clearCallingIdentity();
         try {
-            // This will throw SecurityException if caller can't grant
-            mUgmInternal.checkGrantUriPermission(sourceUid, null,
-                    ContentProvider.getUriWithoutUserId(uri),
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                    ContentProvider.getUserIdFromUri(uri, UserHandle.getUserId(sourceUid)));
+            PermissionHelper.grantUriPermission(mUgmInternal, uri, sourceUid);
 
             if (mGrantableUris == null) {
                 mGrantableUris = new ArraySet<>();
@@ -1231,14 +1228,18 @@ public final class NotificationRecord {
             mGrantableUris.add(uri);
         } catch (SecurityException e) {
             if (!userOverriddenUri) {
-                if (mTargetSdkVersion >= Build.VERSION_CODES.P) {
-                    throw e;
+                if (isSound) {
+                    mSound = Settings.System.DEFAULT_NOTIFICATION_URI;
+                    Log.w(TAG, "Replacing " + uri + " from " + sourceUid + ": " + e.getMessage());
                 } else {
-                    Log.w(TAG, "Ignoring " + uri + " from " + sourceUid + ": " + e.getMessage());
+                    if (mTargetSdkVersion >= Build.VERSION_CODES.P) {
+                        throw e;
+                    } else {
+                        Log.w(TAG,
+                                "Ignoring " + uri + " from " + sourceUid + ": " + e.getMessage());
+                    }
                 }
             }
-        } finally {
-            Binder.restoreCallingIdentity(ident);
         }
     }
 

@@ -863,9 +863,17 @@ public class MediaSessionRecord implements IBinder.DeathRecipient {
 
         @Override
         public void setMediaButtonReceiver(PendingIntent pi) throws RemoteException {
-            mMediaButtonReceiver = pi;
             final long token = Binder.clearCallingIdentity();
             try {
+
+                if (pi != null && pi.isActivity()) {
+                    Log.w(
+                            TAG,
+                            "Ignoring invalid media button receiver targeting an activity: " + pi);
+                    return;
+                }
+
+                mMediaButtonReceiver = pi;
                 mService.onMediaButtonReceiverChanged(MediaSessionRecord.this);
             } finally {
                 Binder.restoreCallingIdentity(token);
