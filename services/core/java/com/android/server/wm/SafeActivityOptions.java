@@ -19,6 +19,7 @@ package com.android.server.wm;
 import static android.Manifest.permission.CONTROL_REMOTE_APP_TRANSITION_ANIMATIONS;
 import static android.Manifest.permission.START_TASKS_FROM_RECENTS;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
+import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.view.Display.INVALID_DISPLAY;
@@ -253,6 +254,17 @@ public class SafeActivityOptions {
             final String msg = "Permission Denial: starting " + getIntentString(intent)
                     + " from " + callerApp + " (pid=" + callingPid
                     + ", uid=" + callingUid + ") with remoteAnimationAdapter";
+            Slog.w(TAG, msg);
+            throw new SecurityException(msg);
+        }
+
+        // setLaunchWindowingMode(PINNED) is not allowed, use ActivityOptions#makeLaunchIntoPip
+        // instead which is a public API.
+        if (options.getLaunchWindowingMode() == WINDOWING_MODE_PINNED) {
+            final String msg = "Permission Denial: starting " + getIntentString(intent)
+                    + " from " + callerApp + " (pid=" + callingPid
+                    + ", uid=" + callingUid + ") with"
+                    + " setLaunchWindowingMode=PINNED";
             Slog.w(TAG, msg);
             throw new SecurityException(msg);
         }

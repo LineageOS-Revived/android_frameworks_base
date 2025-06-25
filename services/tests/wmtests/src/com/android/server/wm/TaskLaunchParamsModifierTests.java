@@ -308,41 +308,6 @@ public class TaskLaunchParamsModifierTests extends ActivityTestsBase {
     }
 
     @Test
-    public void testKeepsPictureInPictureLaunchModeInOptions() {
-        final TestDisplayContent freeformDisplay = createNewDisplayContent(
-                WINDOWING_MODE_FREEFORM);
-
-        final ActivityOptions options = ActivityOptions.makeBasic();
-        options.setLaunchWindowingMode(WINDOWING_MODE_PINNED);
-
-        mCurrent.mPreferredTaskDisplayArea = freeformDisplay.getDefaultTaskDisplayArea();
-
-        assertEquals(RESULT_CONTINUE, mTarget.onCalculate(/* task */ null, /* layout */ null,
-                mActivity, /* source */ null, options, mCurrent, mResult));
-
-        assertEquivalentWindowingMode(WINDOWING_MODE_PINNED, mResult.mWindowingMode,
-                WINDOWING_MODE_FREEFORM);
-    }
-
-    @Test
-    public void testKeepsPictureInPictureLaunchModeWithBoundsInOptions() {
-        final TestDisplayContent freeformDisplay = createNewDisplayContent(
-                WINDOWING_MODE_FREEFORM);
-
-        final ActivityOptions options = ActivityOptions.makeBasic();
-        options.setLaunchWindowingMode(WINDOWING_MODE_PINNED);
-        options.setLaunchBounds(new Rect(0, 0, 100, 100));
-
-        mCurrent.mPreferredTaskDisplayArea = freeformDisplay.getDefaultTaskDisplayArea();
-
-        assertEquals(RESULT_CONTINUE, mTarget.onCalculate(/* task */ null, /* layout */ null,
-                mActivity, /* source */ null, options, mCurrent, mResult));
-
-        assertEquivalentWindowingMode(WINDOWING_MODE_PINNED, mResult.mWindowingMode,
-                WINDOWING_MODE_FREEFORM);
-    }
-
-    @Test
     public void testKeepsFullscreenLaunchModeInOptionsOnNonFreeformDisplay() {
         final ActivityOptions options = ActivityOptions.makeBasic();
         options.setLaunchWindowingMode(WINDOWING_MODE_FULLSCREEN);
