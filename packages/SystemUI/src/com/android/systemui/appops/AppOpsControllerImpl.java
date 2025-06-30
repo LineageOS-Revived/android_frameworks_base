@@ -229,7 +229,7 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
             if (item == null && active) {
                 item = new AppOpItem(code, uid, packageName, System.currentTimeMillis());
                 if (code == AppOpsManager.OP_RECORD_AUDIO) {
-                    item.setSilenced(isAnyRecordingPausedLocked(uid));
+                    item.setSilenced(isAllRecordingPausedLocked(uid));
                 }
                 mActiveItems.add(item);
                 if (DEBUG) Log.w(TAG, "Added item: " + item.toString());
@@ -479,18 +479,21 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
 
     }
 
-    private boolean isAnyRecordingPausedLocked(int uid) {
+    // TODO(b/365843152) remove AudioRecordingConfiguration listening
+    private boolean isAllRecordingPausedLocked(int uid) {
         if (mMicMuted) {
             return true;
         }
         List<AudioRecordingConfiguration> configs = mRecordingsByUid.get(uid);
         if (configs == null) return false;
+        // If we are aware of AudioRecordConfigs, suppress the indicator if all of them are known
+        // to be silenced.
         int configsNum = configs.size();
         for (int i = 0; i < configsNum; i++) {
             AudioRecordingConfiguration config = configs.get(i);
-            if (config.isClientSilenced()) return true;
+            if (!config.isClientSilenced()) return false;
         }
-        return false;
+        return true;
     }
 
     private void updateRecordingPausedStatus() {
@@ -499,7 +502,7 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
             for (int i = 0; i < size; i++) {
                 AppOpItem item = mActiveItems.get(i);
                 if (item.getCode() == AppOpsManager.OP_RECORD_AUDIO) {
-                    boolean paused = isAnyRecordingPausedLocked(item.getUid());
+                    boolean paused = isAllRecordingPausedLocked(item.getUid());
                     if (item.isSilenced() != paused) {
                         item.setSilenced(paused);
                         notifySuscribers(
