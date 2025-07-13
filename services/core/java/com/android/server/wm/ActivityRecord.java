@@ -1258,7 +1258,7 @@ public final class ActivityRecord extends ConfigurationContainer {
         newTask.addActivityAtIndex(position, this);
     }
 
-    private boolean isHomeIntent(Intent intent) {
+    static boolean isHomeIntent(Intent intent) {
         return ACTION_MAIN.equals(intent.getAction())
                 && (intent.hasCategory(CATEGORY_HOME)
                 || intent.hasCategory(CATEGORY_SECONDARY_HOME))

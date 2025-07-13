@@ -191,6 +191,19 @@ public class ActivityStartInterceptorTest {
     }
 
     @Test
+    public void testInterceptIncorrectHomeIntent() {
+        // Create a non-standard home intent
+        final Intent homeIntent = new Intent(Intent.ACTION_MAIN);
+        homeIntent.addCategory(Intent.CATEGORY_HOME);
+        homeIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+
+        // Ensure the intent is intercepted and normalized to standard home intent.
+        assertTrue(mInterceptor.intercept(homeIntent, null, mAInfo, null, null, null, 0, 0, null,
+                false));
+        assertTrue(ActivityRecord.isHomeIntent(homeIntent));
+    }
+
+    @Test
     public void testInterceptQuietProfile() {
         // GIVEN that the user the activity is starting as is currently in quiet mode
         when(mUserManager.isQuietModeEnabled(eq(UserHandle.of(TEST_USER_ID)))).thenReturn(true);
