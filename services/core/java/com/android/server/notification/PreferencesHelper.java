@@ -44,6 +44,7 @@ import android.util.SparseBooleanArray;
 import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.R;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.util.Preconditions;
@@ -70,7 +71,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PreferencesHelper implements RankingConfig {
     private static final String TAG = "NotificationPrefHelper";
     private static final int XML_VERSION = 1;
-    private static final int UNKNOWN_UID = UserHandle.USER_NULL;
+    private static final int INVALID_UID = -1;
     private static final String NON_BLOCKABLE_CHANNEL_DELIM = ":";
 
     @VisibleForTesting
@@ -178,7 +179,7 @@ public class PreferencesHelper implements RankingConfig {
                         mHideSilentStatusBarIcons = XmlUtils.readBooleanAttribute(
                                 parser, ATT_HIDE_SILENT, DEFAULT_HIDE_SILENT_STATUS_BAR_ICONS);
                     } else if (TAG_PACKAGE.equals(tag)) {
-                        int uid = XmlUtils.readIntAttribute(parser, ATT_UID, UNKNOWN_UID);
+                        int uid = XmlUtils.readIntAttribute(parser, ATT_UID, INVALID_UID);
                         String name = parser.getAttributeValue(null, ATT_NAME);
                         if (!TextUtils.isEmpty(name)) {
                             if (forRestore) {
@@ -191,7 +192,8 @@ public class PreferencesHelper implements RankingConfig {
                             boolean skipWarningLogged = false;
                             boolean skipGroupWarningLogged = false;
 
-                            PackagePreferences r = getOrCreatePackagePreferencesLocked(name, uid,
+                            PackagePreferences r = getOrCreatePackagePreferencesSupportingInvalidUidLocked(
+                                    name, uid,
                                     XmlUtils.readIntAttribute(
                                             parser, ATT_IMPORTANCE, DEFAULT_IMPORTANCE),
                                     XmlUtils.readIntAttribute(parser, ATT_PRIORITY,
@@ -274,7 +276,7 @@ public class PreferencesHelper implements RankingConfig {
                                 // Delegate
                                 if (TAG_DELEGATE.equals(tagName)) {
                                     int delegateId =
-                                            XmlUtils.readIntAttribute(parser, ATT_UID, UNKNOWN_UID);
+                                            XmlUtils.readIntAttribute(parser, ATT_UID, INVALID_UID);
                                     String delegateName =
                                             XmlUtils.readStringAttribute(parser, ATT_NAME);
                                     boolean delegateEnabled = XmlUtils.readBooleanAttribute(
@@ -283,7 +285,7 @@ public class PreferencesHelper implements RankingConfig {
                                             parser, ATT_USER_ALLOWED,
                                             Delegate.DEFAULT_USER_ALLOWED);
                                     Delegate d = null;
-                                    if (delegateId != UNKNOWN_UID && !TextUtils.isEmpty(
+                                    if (delegateId != INVALID_UID && !TextUtils.isEmpty(
                                             delegateName)) {
                                         d = new Delegate(
                                                 delegateName, delegateId, delegateEnabled,
@@ -307,22 +309,54 @@ public class PreferencesHelper implements RankingConfig {
         throw new IllegalStateException("Failed to reach END_DOCUMENT");
     }
 
+    /**
+     * Returns the {@link PackagePreferences} object associated to the pkg/uid pair. If it doesn't
+     * exist, return {@code null}.
+     */
+    @GuardedBy("mPackagePreferences")
+    @Nullable
     private PackagePreferences getPackagePreferencesLocked(String pkg, int uid) {
         final String key = packagePreferencesKey(pkg, uid);
         return mPackagePreferences.get(key);
     }
 
+    /**
+     * Returns the {@link PackagePreferences} object associated to the pkg/uid pair. If it doesn't
+     * exist, a new one is initialized (with appropriate defaults, e.g. default channel if pre-O)
+     * and stored in {@link #mPackagePreferences}.
+     *
+     * @throws IllegalArgumentException if the supplied uid is not valid (i.e. {@code INVALID_UID}).
+     */
+    @GuardedBy("mPackagePreferences")
+    @NonNull
     private PackagePreferences getOrCreatePackagePreferencesLocked(String pkg, int uid) {
-        return getOrCreatePackagePreferencesLocked(pkg, uid,
-                DEFAULT_IMPORTANCE, DEFAULT_PRIORITY, DEFAULT_VISIBILITY, DEFAULT_SHOW_BADGE,
-                DEFAULT_ALLOW_BUBBLE);
+        Objects.requireNonNull(pkg);
+        Preconditions.checkArgument(uid != INVALID_UID,
+                "Valid uid required to get settings of %s", pkg);
+        // TODO (b/194833441): use permissionhelper instead of DEFAULT_IMPORTANCE
+        return getOrCreatePackagePreferencesSupportingInvalidUidLocked(pkg,
+                uid, DEFAULT_IMPORTANCE, DEFAULT_PRIORITY,
+                DEFAULT_VISIBILITY, DEFAULT_SHOW_BADGE, DEFAULT_ALLOW_BUBBLE);
     }
 
-    private PackagePreferences getOrCreatePackagePreferencesLocked(String pkg, int uid,
+
+    /**
+     * Returns the {@link PackagePreferences} object associated to the pkg/uid pair, and initializes
+     * a new one (with appropriate defaults, e.g. default channel if pre-O) if it doesn't exist.
+     *
+     * <p>This method accepts {@link android.os.Process#INVALID_UID} as the {@code uid}
+     * parameter, and in that case will create a (time-limited) entry in
+     * {@link #mRestoredWithoutUids} instead of {@link #mPackagePreferences}. As such, should only
+     * be used that way by the {@code readXml()} path, to support restoring NMS backups before all
+     * packages have been reinstalled -- for API calls, we shouldn't create entries for
+     * non-existing packages.
+     */
+    @GuardedBy("mPackagePreferences")
+    private PackagePreferences getOrCreatePackagePreferencesSupportingInvalidUidLocked(String pkg, int uid,
             int importance, int priority, int visibility, boolean showBadge, boolean allowBubble) {
         final String key = packagePreferencesKey(pkg, uid);
         PackagePreferences
-                r = (uid == UNKNOWN_UID) ? mRestoredWithoutUids.get(pkg)
+                r = (uid == INVALID_UID) ? mRestoredWithoutUids.get(pkg)
                 : mPackagePreferences.get(key);
         if (r == null) {
             r = new PackagePreferences();
@@ -340,7 +374,7 @@ public class PreferencesHelper implements RankingConfig {
                 Slog.e(TAG, "createDefaultChannelIfNeededLocked - Exception: " + e);
             }
 
-            if (r.uid == UNKNOWN_UID) {
+            if (r.uid == INVALID_UID) {
                 mRestoredWithoutUids.put(pkg, r);
             } else {
                 mPackagePreferences.put(key, r);
@@ -536,13 +570,15 @@ public class PreferencesHelper implements RankingConfig {
     @Override
     public boolean areBubblesAllowed(String pkg, int uid) {
         synchronized (mPackagePreferences) {
-            return getOrCreatePackagePreferencesLocked(pkg, uid).allowBubble;
+            PackagePreferences p = getPackagePreferencesLocked(pkg, uid);
+            return p != null ? p.allowBubble : DEFAULT_ALLOW_BUBBLE;
         }
     }
 
     public int getAppLockedFields(String pkg, int uid) {
         synchronized (mPackagePreferences) {
-            return getOrCreatePackagePreferencesLocked(pkg, uid).lockedAppFields;
+            PackagePreferences p = getPackagePreferencesLocked(pkg, uid);
+            return p != null ? p.lockedAppFields : DEFAULT_LOCKED_APP_FIELDS;
         }
     }
 
@@ -571,7 +607,8 @@ public class PreferencesHelper implements RankingConfig {
     @Override
     public boolean canShowBadge(String packageName, int uid) {
         synchronized (mPackagePreferences) {
-            return getOrCreatePackagePreferencesLocked(packageName, uid).showBadge;
+            PackagePreferences p = getPackagePreferencesLocked(packageName, uid);
+            return p != null ? p.showBadge : DEFAULT_SHOW_BADGE;
         }
     }
 
@@ -589,7 +626,10 @@ public class PreferencesHelper implements RankingConfig {
             return false;
         }
         synchronized (mPackagePreferences) {
-            PackagePreferences r = getOrCreatePackagePreferencesLocked(packageName, uid);
+            PackagePreferences r = getPackagePreferencesLocked(packageName, uid);
+            if (r == null) {
+                return false;
+            }
             NotificationChannelGroup group = r.groups.get(groupId);
             if (group == null) {
                 return false;
@@ -600,13 +640,15 @@ public class PreferencesHelper implements RankingConfig {
 
     int getPackagePriority(String pkg, int uid) {
         synchronized (mPackagePreferences) {
-            return getOrCreatePackagePreferencesLocked(pkg, uid).priority;
+            PackagePreferences p = getPackagePreferencesLocked(pkg, uid);
+            return p != null ? p.priority : DEFAULT_PRIORITY;
         }
     }
 
     int getPackageVisibility(String pkg, int uid) {
         synchronized (mPackagePreferences) {
-            return getOrCreatePackagePreferencesLocked(pkg, uid).visibility;
+            PackagePreferences p = getPackagePreferencesLocked(pkg, uid);
+            return p != null ? p.visibility : DEFAULT_VISIBILITY;
         }
     }
 
@@ -619,9 +661,6 @@ public class PreferencesHelper implements RankingConfig {
         Preconditions.checkNotNull(!TextUtils.isEmpty(group.getName()));
         synchronized (mPackagePreferences) {
             PackagePreferences r = getOrCreatePackagePreferencesLocked(pkg, uid);
-            if (r == null) {
-                throw new IllegalArgumentException("Invalid package");
-            }
             if (fromTargetApp) {
                 group.setBlocked(false);
                 if (r.groups.size() >= NOTIFICATION_CHANNEL_GROUP_COUNT_LIMIT) {
@@ -663,9 +702,6 @@ public class PreferencesHelper implements RankingConfig {
         boolean needsPolicyFileChange = false;
         synchronized (mPackagePreferences) {
             PackagePreferences r = getOrCreatePackagePreferencesLocked(pkg, uid);
-            if (r == null) {
-                throw new IllegalArgumentException("Invalid package");
-            }
             if (channel.getGroup() != null && !r.groups.containsKey(channel.getGroup())) {
                 throw new IllegalArgumentException("NotificationChannelGroup doesn't exist");
             }
@@ -791,9 +827,6 @@ public class PreferencesHelper implements RankingConfig {
         Preconditions.checkNotNull(updatedChannel.getId());
         synchronized (mPackagePreferences) {
             PackagePreferences r = getOrCreatePackagePreferencesLocked(pkg, uid);
-            if (r == null) {
-                throw new IllegalArgumentException("Invalid package");
-            }
             NotificationChannel channel = r.channels.get(updatedChannel.getId());
             if (channel == null || channel.isDeleted()) {
                 throw new IllegalArgumentException("Channel does not exist");
@@ -850,6 +883,9 @@ public class PreferencesHelper implements RankingConfig {
     public NotificationChannel getNotificationChannel(String pkg, int uid, String channelId,
             boolean includeDeleted) {
         Preconditions.checkNotNull(pkg);
+        if (uid == INVALID_UID) {
+            return null;
+        }
         synchronized (mPackagePreferences) {
             PackagePreferences r = getOrCreatePackagePreferencesLocked(pkg, uid);
             if (r == null) {
@@ -1112,6 +1148,9 @@ public class PreferencesHelper implements RankingConfig {
     public ParceledListSlice<NotificationChannel> getNotificationChannels(String pkg, int uid,
             boolean includeDeleted) {
         Preconditions.checkNotNull(pkg);
+        if (uid == INVALID_UID) {
+            return ParceledListSlice.emptyList();
+        }
         List<NotificationChannel> channels = new ArrayList<>();
         synchronized (mPackagePreferences) {
             PackagePreferences r = getPackagePreferencesLocked(pkg, uid);
@@ -1344,7 +1383,8 @@ public class PreferencesHelper implements RankingConfig {
      * {@code uid}, have their importance locked by the user. Locked notifications don't get
      * considered for sentiment adjustments (and thus never show a blocking helper).
      */
-    public void setAppImportanceLocked(String packageName, int uid) {
+    @VisibleForTesting
+    void setAppImportanceLocked(String packageName, int uid) {
         synchronized (mPackagePreferences) {
             PackagePreferences prefs = getOrCreatePackagePreferencesLocked(packageName, uid);
             if ((prefs.lockedAppFields & LockableAppFields.USER_LOCKED_IMPORTANCE) != 0) {
@@ -1516,7 +1556,7 @@ public class PreferencesHelper implements RankingConfig {
                 pw.print("  AppSettings: ");
                 pw.print(r.pkg);
                 pw.print(" (");
-                pw.print(r.uid == UNKNOWN_UID ? "UNKNOWN_UID" : Integer.toString(r.uid));
+                pw.print(r.uid == INVALID_UID ? "INVALID_UID" : Integer.toString(r.uid));
                 pw.print(')');
                 if (r.importance != DEFAULT_IMPORTANCE) {
                     pw.print(" importance=");
@@ -1943,7 +1983,7 @@ public class PreferencesHelper implements RankingConfig {
 
     private static class PackagePreferences {
         String pkg;
-        int uid = UNKNOWN_UID;
+        int uid = INVALID_UID;
         int importance = DEFAULT_IMPORTANCE;
         int priority = DEFAULT_PRIORITY;
         int visibility = DEFAULT_VISIBILITY;
@@ -1970,7 +2010,7 @@ public class PreferencesHelper implements RankingConfig {
         static final boolean DEFAULT_ENABLED = true;
         static final boolean DEFAULT_USER_ALLOWED = true;
         String mPkg;
-        int mUid = UNKNOWN_UID;
+        int mUid = INVALID_UID;
         boolean mEnabled = DEFAULT_ENABLED;
         boolean mUserAllowed = DEFAULT_USER_ALLOWED;
 
@@ -1982,7 +2022,7 @@ public class PreferencesHelper implements RankingConfig {
         }
 
         public boolean isAllowed(String pkg, int uid) {
-            if (pkg == null || uid == UNKNOWN_UID) {
+            if (pkg == null || uid == INVALID_UID) {
                 return false;
             }
             return pkg.equals(mPkg)
