@@ -49,6 +49,7 @@ import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.Build.VERSION_CODES.O_MR1;
 import static android.os.Build.VERSION_CODES.P;
+import static android.os.Process.INVALID_UID;
 import static android.os.UserHandle.USER_SYSTEM;
 import static android.service.notification.Adjustment.KEY_IMPORTANCE;
 import static android.service.notification.Adjustment.KEY_USER_SENTIMENT;
@@ -144,6 +145,7 @@ import android.provider.MediaStore;
 import android.provider.Settings;
 import android.service.notification.Adjustment;
 import android.service.notification.ConversationChannelWrapper;
+import android.service.notification.INotificationListener;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.NotificationRankingUpdate;
 import android.service.notification.NotificationStats;
@@ -223,6 +225,7 @@ import java.util.function.Consumer;
 @RunWithLooper
 public class NotificationManagerServiceTest extends UiServiceTestCase {
     private static final String TEST_CHANNEL_ID = "NotificationManagerServiceTestChannelId";
+    private static final String MISSING_PACKAGE = "MISSING!";
 
     private TestableContext mContext = spy(getContext());
     private final int mUid = Binder.getCallingUid();
@@ -503,6 +506,9 @@ public class NotificationManagerServiceTest extends UiServiceTestCase {
         // MockPackageManager - default returns ApplicationInfo with matching calling UID
         mContext.setMockPackageManager(mPackageManagerClient);
 
+        when(mPackageManager.getPackageUid(eq(mPkg), anyLong(), eq(mUserId))).thenReturn(mUid);
+        when(mPackageManager.getPackageUid(eq(MISSING_PACKAGE), anyLong(), anyInt()))
+                .thenReturn(INVALID_UID);
         when(mPackageManager.getApplicationInfo(anyString(), anyInt(), anyInt()))
                 .thenAnswer((Answer<ApplicationInfo>) invocation -> {
                     Object[] args = invocation.getArguments();
@@ -514,6 +520,8 @@ public class NotificationManagerServiceTest extends UiServiceTestCase {
                     return getApplicationInfo((String) args[0], mUid);
                 });
         when(mPackageManagerClient.getPackageUidAsUser(any(), anyInt())).thenReturn(mUid);
+        when(mPackageManagerClient.getPackageUidAsUser(eq(MISSING_PACKAGE), anyInt()))
+                .thenThrow(new PackageManager.NameNotFoundException("Missing package!"));
         final LightsManager mockLightsManager = mock(LightsManager.class);
         when(mockLightsManager.getLight(anyInt())).thenReturn(mock(LogicalLight.class));
         when(mAudioManager.getRingerModeInternal()).thenReturn(AudioManager.RINGER_MODE_NORMAL);
@@ -2916,6 +2924,50 @@ public class NotificationManagerServiceTest extends UiServiceTestCase {
         }
 
         verify(mPreferencesHelper, never()).getNotificationChannelGroups(anyString(), anyInt());
+    }
+
+    @Test
+    public void getNotificationChannelsFromPrivilegedListener_invalidPackage_returnsNull()
+            throws Exception {
+        when(mListeners.checkServiceTokenLocked(any())).thenReturn(mListener);
+        when(mCompanionMgr.getAssociations(mPkg, mUserId))
+                .thenReturn(singletonList(mock(AssociationInfo.class)));
+
+        ParceledListSlice<?> channels =
+                mBinderService.getNotificationChannelsFromPrivilegedListener(
+                        mock(INotificationListener.class), MISSING_PACKAGE, mUser);
+
+        assertThat(channels.getList()).isEmpty();
+    }
+
+    @Test
+    public void getNotificationChannelGroupsFromPrivilegedListener_invalidPackage_returnsEmpty()
+            throws Exception {
+        when(mListeners.checkServiceTokenLocked(any())).thenReturn(mListener);
+        when(mCompanionMgr.getAssociations(mPkg, mUserId))
+                .thenReturn(singletonList(mock(AssociationInfo.class)));
+
+        ParceledListSlice<?> groups =
+                mBinderService.getNotificationChannelGroupsFromPrivilegedListener(
+                        mock(INotificationListener.class), MISSING_PACKAGE, mUser);
+
+        assertThat(groups.getList()).isEmpty();
+    }
+
+    @Test
+    public void updateNotificationChannelFromPrivilegedListener_invalidPackage_throws()
+            throws Exception {
+        when(mListeners.checkServiceTokenLocked(any())).thenReturn(mListener);
+        when(mCompanionMgr.getAssociations(mPkg, mUserId))
+                .thenReturn(singletonList(mock(AssociationInfo.class)));
+
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> mBinderService.updateNotificationChannelFromPrivilegedListener(
+                        mock(INotificationListener.class), MISSING_PACKAGE, mUser,
+                        mTestNotificationChannel));
+
+        assertThat(e).hasMessageThat().isEqualTo(
+                "Valid uid required to get settings of " + MISSING_PACKAGE);
     }
 
     @Test
