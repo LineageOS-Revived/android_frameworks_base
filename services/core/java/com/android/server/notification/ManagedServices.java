@@ -111,6 +111,13 @@ abstract public class ManagedServices {
     static final int APPROVAL_BY_PACKAGE = 0;
     static final int APPROVAL_BY_COMPONENT = 1;
 
+    /**
+     * Maximum number of entries allowed in the lists of packages/components contained in
+     * {@link #mApproved} or {@link #mUserSetServices}. For the first, this effectively limits
+     * the number of services (e.g. NLSes) that will be bound per user.
+     */
+    private static final int MAX_SERVICE_ENTRIES = 100;
+
     protected final Context mContext;
     protected final Object mMutex;
     private final UserProfiles mUserProfiles;
@@ -476,10 +483,11 @@ abstract public class ManagedServices {
         return mEnabledServicesPackageNames.contains(pkg);
     }
 
-    protected void setPackageOrComponentEnabled(String pkgOrComponent, int userId,
+    protected boolean setPackageOrComponentEnabled(String pkgOrComponent, int userId,
             boolean isPrimary, boolean enabled) {
         Slog.i(TAG,
                 (enabled ? " Allowing " : "Disallowing ") + mConfig.caption + " " + pkgOrComponent);
+        boolean changed = false;
         synchronized (mApproved) {
             ArrayMap<Boolean, ArraySet<String>> allowedByType = mApproved.get(userId);
             if (allowedByType == null) {
@@ -495,14 +503,25 @@ abstract public class ManagedServices {
 
             if (approvedItem != null) {
                 if (enabled) {
-                    approved.add(approvedItem);
+                    if (approved.size() < MAX_SERVICE_ENTRIES) {
+                        approved.add(approvedItem);
+                        changed = true;
+                    } else {
+                        Slog.w(TAG, "Failed to allow" + mConfig.caption + pkgOrComponent
+                            + "because there are too many already");
+                    }
                 } else {
                     approved.remove(approvedItem);
+                    changed = true;
                 }
             }
         }
 
-        rebindServices(false, userId);
+        if (changed) {
+            rebindServices(false, userId);
+        }
+
+        return changed;
     }
 
     private String getApprovedValue(String pkgOrComponent) {

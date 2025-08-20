@@ -4044,8 +4044,11 @@ public class NotificationManagerService extends SystemService {
             try {
                 if (mAllowedManagedServicePackages.test(
                         pkg, userId, mConditionProviders.getRequiredPermission())) {
-                    mConditionProviders.setPackageOrComponentEnabled(
-                            pkg, userId, true, granted);
+                    boolean changed = mConditionProviders.setPackageOrComponentEnabled(pkg, userId,
+                            /* isPrimary= */ true, granted);
+                    if (!changed) {
+                        return;
+                    }
 
                     getContext().sendBroadcastAsUser(new Intent(
                             ACTION_NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED)
@@ -4207,10 +4210,14 @@ public class NotificationManagerService extends SystemService {
             try {
                 if (mAllowedManagedServicePackages.test(
                         listener.getPackageName(), userId, mListeners.getRequiredPermission())) {
+                    boolean changed = mListeners.setPackageOrComponentEnabled(
+                            listener.flattenToString(), userId, /* isPrimary= */ true, granted);
+                    if (!changed) {
+                        return;
+                    }
+
                     mConditionProviders.setPackageOrComponentEnabled(listener.flattenToString(),
                             userId, false, granted);
-                    mListeners.setPackageOrComponentEnabled(listener.flattenToString(),
-                            userId, true, granted);
 
                     getContext().sendBroadcastAsUser(new Intent(
                             ACTION_NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED)
@@ -8395,19 +8402,19 @@ public class NotificationManagerService extends SystemService {
         }
 
         @Override
-        protected void setPackageOrComponentEnabled(String pkgOrComponent, int userId,
+        protected boolean setPackageOrComponentEnabled(String pkgOrComponent, int userId,
                 boolean isPrimary, boolean enabled) {
             // Ensures that only one component is enabled at a time
             if (enabled) {
                 List<ComponentName> allowedComponents = getAllowedComponents(userId);
                 if (!allowedComponents.isEmpty()) {
                     ComponentName currentComponent = CollectionUtils.firstOrNull(allowedComponents);
-                    if (currentComponent.flattenToString().equals(pkgOrComponent)) return;
+                    if (currentComponent.flattenToString().equals(pkgOrComponent)) return false;
                     setNotificationAssistantAccessGrantedForUserInternal(
                             currentComponent, userId, false);
                 }
             }
-            super.setPackageOrComponentEnabled(pkgOrComponent, userId, isPrimary, enabled);
+            return super.setPackageOrComponentEnabled(pkgOrComponent, userId, isPrimary, enabled);
         }
 
         @Override
