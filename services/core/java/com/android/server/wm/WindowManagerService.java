@@ -2042,6 +2042,8 @@ public class WindowManagerService extends IWindowManager.Stub
             int privateFlagChanges = 0;
             if (attrs != null) {
                 displayPolicy.adjustWindowParamsLw(win, attrs, pid, uid);
+                attrs.privateFlags = sanitizePrivateFlags(attrs.privateFlags,
+                        win.mAttrs.privateFlags, win.getName(), uid, pid);
                 // if they don't have the permission, mask out the status bar bits
                 if (seq == win.mSeq) {
                     int systemUiVisibility = attrs.systemUiVisibility
@@ -2948,6 +2950,8 @@ public class WindowManagerService extends IWindowManager.Stub
             throw new SecurityException("Requires INTERACT_ACROSS_USERS permission");
         }
 
+        final int pid = Binder.getCallingPid();
+        final int uid = Binder.getCallingUid();
         long origId = Binder.clearCallingIdentity();
         try {
             return mPolicy.isKeyguardSecure(userId);
@@ -7861,5 +7865,31 @@ public class WindowManagerService extends IWindowManager.Stub
             displayContent.mAcitvityDisplay.ensureActivitiesVisible(null /* starting */,
                     0 /* configChanges */, !PRESERVE_WINDOWS, true /* notifyClients */);
         }
+    }
+
+    private boolean hasFlags(int flags, int mask) {
+        return (flags & mask) != 0;
+    }
+
+    private boolean hasPermission(String permission, int callingPid, int callingUid) {
+        return mContext.checkPermission(permission, callingPid, callingUid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Ensure the caller has the right permissions to be able to set the requested private flags.
+     */
+    private int sanitizePrivateFlags(int newPrivateFlags, int oldPrivateFlags, String windowName,
+            int callingUid, int callingPid) {
+        final int addedPrivateFlags = ~oldPrivateFlags & newPrivateFlags;
+        int sanitizedFlags = newPrivateFlags;
+        if (hasFlags(addedPrivateFlags, PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY)
+                && !hasPermission(android.Manifest.permission.INTERNAL_SYSTEM_WINDOW,
+                    callingUid, callingPid)) {
+            Slog.w(TAG, "Removing PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY from '" + windowName
+                    + "' because it doesn't have INTERNAL_SYSTEM_WINDOW permission");
+            sanitizedFlags &= ~(PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY);
+        }
+        return sanitizedFlags;
     }
 }
