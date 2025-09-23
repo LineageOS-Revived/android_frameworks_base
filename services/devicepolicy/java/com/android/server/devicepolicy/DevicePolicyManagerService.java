@@ -252,6 +252,7 @@ import com.android.internal.util.Preconditions;
 import com.android.internal.util.StatLogger;
 import com.android.internal.util.XmlUtils;
 import com.android.internal.widget.LockPatternUtils;
+import com.android.server.accounts.AccountManagerService;
 import com.android.server.LocalServices;
 import com.android.server.LockGuard;
 import com.android.server.SystemServerInitThreadPool;
@@ -7881,6 +7882,17 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
         }
         final boolean hasIncompatibleAccountsOrNonAdb =
                 hasIncompatibleAccountsOrNonAdbNoLock(userId, admin);
+
+        if (!hasIncompatibleAccountsOrNonAdb) {
+            synchronized (getLockObject()) {
+                if (!isAdminTestOnlyLocked(admin, userId) && hasAccountsOnAnyUser()) {
+                    Slog.w(LOG_TAG,
+                            "Non test-only owner can't be installed with existing accounts.");
+                    return false;
+                }
+            }
+        }
+
         synchronized (getLockObject()) {
             enforceCanSetDeviceOwnerLocked(admin, userId, hasIncompatibleAccountsOrNonAdb);
             final ActiveAdmin activeAdmin = getActiveAdminUncheckedLocked(admin, userId);
@@ -14589,6 +14601,11 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
     private DevicePolicyConstants loadConstants() {
         return DevicePolicyConstants.loadFromString(
                 mInjector.settingsGlobalGetString(Global.DEVICE_POLICY_CONSTANTS));
+    }
+
+    private boolean hasAccountsOnAnyUser() {
+        AccountManagerService accountManagerService = AccountManagerService.getSingleton();
+        return accountManagerService.getAllAccounts().length != 0;
     }
 
     /**
