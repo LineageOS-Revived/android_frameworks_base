@@ -289,6 +289,7 @@ import com.android.internal.widget.LockPatternUtils;
 import com.android.internal.widget.LockSettingsInternal;
 import com.android.internal.widget.LockscreenCredential;
 import com.android.internal.widget.PasswordValidationError;
+import com.android.server.accounts.AccountManagerService;
 import com.android.server.LocalServices;
 import com.android.server.LockGuard;
 import com.android.server.PersistentDataBlockManagerInternal;
@@ -8756,6 +8757,17 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
         }
         final boolean hasIncompatibleAccountsOrNonAdb =
                 hasIncompatibleAccountsOrNonAdbNoLock(userId, admin);
+
+        if (!hasIncompatibleAccountsOrNonAdb) {
+            synchronized (getLockObject()) {
+                if (!isAdminTestOnlyLocked(admin, userId) && hasAccountsOnAnyUser()) {
+                    Slog.w(LOG_TAG,
+                            "Non test-only owner can't be installed with existing accounts.");
+                    return false;
+                }
+            }
+        }
+
         synchronized (getLockObject()) {
             enforceCanSetDeviceOwnerLocked(admin, userId, hasIncompatibleAccountsOrNonAdb);
             final ActiveAdmin activeAdmin = getActiveAdminUncheckedLocked(admin, userId);
@@ -16584,6 +16596,11 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
             Slog.d(LOG_TAG, "PO should be able to reset password from direct boot");
             return true;
         }
+    }
+
+    private boolean hasAccountsOnAnyUser() {
+        AccountManagerService accountManagerService = AccountManagerService.getSingleton();
+        return accountManagerService.getAllAccounts().length != 0;
     }
 
     /**
