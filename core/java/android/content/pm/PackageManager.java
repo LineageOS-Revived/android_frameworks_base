@@ -5925,6 +5925,7 @@ public abstract class PackageManager {
      * @hide
      */
     @UnsupportedAppUsage
+    @RequiresPermission(Manifest.permission.CLEAR_APP_USER_DATA)
     public abstract void clearApplicationUserData(@NonNull String packageName,
             @Nullable IPackageDataObserver observer);
     /**
