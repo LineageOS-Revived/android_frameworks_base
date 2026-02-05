@@ -132,6 +132,7 @@ import android.app.admin.DevicePolicyManager.PasswordComplexity;
 import android.app.admin.DevicePolicyManagerInternal;
 import android.app.admin.NetworkEvent;
 import android.app.admin.PasswordMetrics;
+import android.app.admin.PolicySizeVerifier;
 import android.app.admin.SecurityLog;
 import android.app.admin.SecurityLog.SecurityEvent;
 import android.app.admin.StartInstallingUpdateCallback;
@@ -6954,7 +6955,10 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
                 admin.globalProxySpec = null;
                 admin.globalProxyExclusionList = null;
             } else {
-
+                PolicySizeVerifier.enforceMaxStringLength(proxySpec, "proxySpec");
+                if (exclusionList != null) {
+                    PolicySizeVerifier.enforceMaxStringLength(exclusionList, "exclusionList");
+                }
                 admin.specifiesGlobalProxy = true;
                 admin.globalProxySpec = proxySpec;
                 admin.globalProxyExclusionList = exclusionList;
