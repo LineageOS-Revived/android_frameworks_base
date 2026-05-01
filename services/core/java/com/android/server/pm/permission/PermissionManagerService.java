@@ -1695,7 +1695,7 @@ public class PermissionManagerService extends IPermissionManager.Stub {
                 StorageManager.UUID_PRIVATE_INTERNAL, false, mDefaultPermissionCallback);
         for (final int userId : UserManagerService.getInstance().getUserIds()) {
             mPackageManagerInt.forEachPackage(
-                    (AndroidPackage pkg) -> resetRuntimePermissionsInternal(pkg, userId));
+                    (AndroidPackage pkg) -> resetRuntimePermissionsInternal(pkg, userId, true));
         }
     }
 
@@ -1707,7 +1707,7 @@ public class PermissionManagerService extends IPermissionManager.Stub {
      */
     @GuardedBy("mLock")
     private void resetRuntimePermissionsInternal(final AndroidPackage pkg,
-            final int userId) {
+            final int userId, boolean restorePregrantedPermissions) {
         final String packageName = pkg.getPackageName();
 
         // These are flags that can change base on user actions.
@@ -1846,12 +1846,14 @@ public class PermissionManagerService extends IPermissionManager.Stub {
                 continue;
             }
 
-            // If this permission was granted by default or role, make sure it is.
+            // If this permission was granted by default or role, possibly restore it
             if ((oldFlags & FLAG_PERMISSION_GRANTED_BY_DEFAULT) != 0
                     || (oldFlags & FLAG_PERMISSION_GRANTED_BY_ROLE) != 0) {
+                if (restorePregrantedPermissions) {
                 // PermissionPolicyService will handle the app op for runtime permissions later.
-                grantRuntimePermissionInternal(permName, packageName, false,
-                        Process.SYSTEM_UID, userId, delayingPermCallback);
+                    grantRuntimePermissionInternal(permName, packageName, false,
+                            Process.SYSTEM_UID, userId, delayingPermCallback);
+                }
             // If permission review is enabled the permissions for a legacy apps
             // are represented as constantly granted runtime ones, so don't revoke.
             } else if ((flags & FLAG_PERMISSION_REVIEW_REQUIRED) == 0) {
@@ -4919,13 +4921,15 @@ public class PermissionManagerService extends IPermissionManager.Stub {
                     .updateAllPermissions(volumeUuid, sdkUpdated, mDefaultPermissionCallback);
         }
         @Override
-        public void resetRuntimePermissions(AndroidPackage pkg, int userId) {
-            PermissionManagerService.this.resetRuntimePermissionsInternal(pkg, userId);
+        public void resetRuntimePermissions(AndroidPackage pkg, int userId,
+            boolean restorePregrants) {
+            PermissionManagerService.this.resetRuntimePermissionsInternal(pkg,
+                userId, restorePregrants);
         }
         @Override
         public void resetAllRuntimePermissions(final int userId) {
             mPackageManagerInt.forEachPackage(
-                    (AndroidPackage pkg) -> resetRuntimePermissionsInternal(pkg, userId));
+                    (AndroidPackage pkg) -> resetRuntimePermissionsInternal(pkg, userId, true));
         }
         @Override
         public String[] getAppOpPermissionPackages(String permName, int callingUid) {

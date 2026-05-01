@@ -30,6 +30,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.provider.Settings;
 import android.service.notification.StatusBarNotification;
 import android.util.ArraySet;
@@ -123,6 +124,8 @@ public class NotificationGutsManager implements Dumpable, NotificationLifetimeEx
     private final CurrentUserContextTracker mContextTracker;
     private final Provider<PriorityOnboardingDialogController.Builder> mBuilderProvider;
     private final UiEventLogger mUiEventLogger;
+    private final UserManager mUserManager;
+
 
     /**
      * Injected constructor. See {@link NotificationsModule}.
@@ -154,6 +157,7 @@ public class NotificationGutsManager implements Dumpable, NotificationLifetimeEx
         mChannelEditorDialogController = channelEditorDialogController;
         mBubbleController = bubbleController;
         mUiEventLogger = uiEventLogger;
+        mUserManager = context.getSystemService(UserManager.class);
     }
 
     public void setUpWithPresenter(NotificationPresenter presenter,
@@ -591,6 +595,10 @@ public class NotificationGutsManager implements Dumpable, NotificationLifetimeEx
         }
 
         final ExpandableNotificationRow row = (ExpandableNotificationRow) view;
+        if (affectedByWorkProfileLock(row)) {
+            return false;
+        }
+
         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
         if (row.areGutsExposed()) {
             closeAndSaveGuts(false /* removeLeavebehind */, false /* force */,
@@ -645,6 +653,12 @@ public class NotificationGutsManager implements Dumpable, NotificationLifetimeEx
         };
         guts.post(mOpenRunnable);
         return true;
+    }
+
+    boolean affectedByWorkProfileLock(ExpandableNotificationRow row) {
+        int userId = row.getEntry().getSbn().getNormalizedUserId();
+        return mUserManager.isManagedProfile(userId)
+                && mLockscreenUserManager.isLockscreenPublicMode(userId);
     }
 
     @Override

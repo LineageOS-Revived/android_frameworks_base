@@ -237,7 +237,7 @@ public abstract class PermissionManagerServiceInternal extends PermissionManager
      * specified package for the given user.
      */
     public abstract void resetRuntimePermissions(@NonNull AndroidPackage pkg,
-            @UserIdInt int userId);
+            @UserIdInt int userId, boolean restorePregrants);
 
      /**
       * If the app is updated, then some checks need to be performed to ensure the package is not 

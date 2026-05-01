@@ -115,6 +115,7 @@ public class ParsedPermissionUtils {
             return input.error("<permission> does not specify protectionLevel");
         }
 
+        permission.setName(permission.getName().trim());
         permission.protectionLevel = PermissionInfo.fixProtectionLevel(permission.protectionLevel);
 
         if (permission.getProtectionFlags() != 0) {
@@ -166,6 +167,7 @@ public class ParsedPermissionUtils {
                     + permission.getName());
         }
 
+        permission.setName(permission.getName().trim());
         permission.protectionLevel = PermissionInfo.PROTECTION_NORMAL;
         permission.tree = true;
 
@@ -203,6 +205,7 @@ public class ParsedPermissionUtils {
             permissionGroup.requestRes = sa.getResourceId(R.styleable.AndroidManifestPermissionGroup_request, 0);
             permissionGroup.flags = sa.getInt(R.styleable.AndroidManifestPermissionGroup_permissionGroupFlags,0);
             permissionGroup.priority = sa.getInt(R.styleable.AndroidManifestPermissionGroup_priority, 0);
+            permissionGroup.setName(permissionGroup.getName().trim());
             // @formatter:on
         } finally {
             sa.recycle();

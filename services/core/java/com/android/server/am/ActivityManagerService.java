@@ -4236,6 +4236,18 @@ public class ActivityManagerService extends IActivityManager.Stub
     @Override
     public boolean clearApplicationUserData(final String packageName, boolean keepState,
             final IPackageDataObserver observer, int userId) {
+        return clearApplicationUserData(packageName, keepState, observer, userId, true);
+    }
+
+    @Override
+    public boolean clearApplicationUserDataWithoutPermissionReset(final String packageName,
+            boolean keepState, final IPackageDataObserver observer, int userId) {
+        return clearApplicationUserData(packageName, keepState, observer, userId, false);
+    }
+
+    private boolean clearApplicationUserData(final String packageName, boolean keepState,
+            final IPackageDataObserver observer, int userId,
+            boolean restorePregrantedPermissions) {
         enforceNotIsolatedCaller("clearApplicationUserData");
         int uid = Binder.getCallingUid();
         int pid = Binder.getCallingPid();
@@ -4248,31 +4260,40 @@ public class ActivityManagerService extends IActivityManager.Stub
         long callingId = Binder.clearCallingIdentity();
         try {
             IPackageManager pm = AppGlobals.getPackageManager();
+            boolean permitted = true;
             synchronized(this) {
                 // Instant packages are not protected
                 if (getPackageManagerInternalLocked().isPackageDataProtected(
                         resolvedUserId, packageName)) {
-                    throw new SecurityException(
-                            "Cannot clear data for a protected package: " + packageName);
+                    if (ActivityManager.checkUidPermission(android.Manifest.permission.MANAGE_USERS,
+                            uid) == PERMISSION_GRANTED) {
+                        // The caller has the MANAGE_USERS permission, tell them what's going on.
+                        throw new SecurityException(
+                                "Cannot clear data for a protected package: " + packageName);
+                    } else {
+                        permitted = false; // fall through and throw the SecurityException below.
+                    }
                 }
 
                 ApplicationInfo applicationInfo = null;
-                try {
-                    applicationInfo = pm.getApplicationInfo(packageName,
-                            MATCH_UNINSTALLED_PACKAGES, resolvedUserId);
-                } catch (RemoteException e) {
-                    /* ignore */
+                if (permitted) {
+                    try {
+                        applicationInfo = pm.getApplicationInfo(packageName,
+                                MATCH_UNINSTALLED_PACKAGES, resolvedUserId);
+                    } catch (RemoteException e) {
+                        /* ignore */
+                    }
+                    permitted = (applicationInfo != null && applicationInfo.uid == uid
+                        && !restorePregrantedPermissions) // own uid data, not changing pregrants
+                            || (checkComponentPermission(permission.CLEAR_APP_USER_DATA,
+                                    pid, uid, -1, true) == PackageManager.PERMISSION_GRANTED);
                 }
-                appInfo = applicationInfo;
-
-                final boolean clearingOwnUidData = appInfo != null && appInfo.uid == uid;
-
-                if (!clearingOwnUidData && checkComponentPermission(permission.CLEAR_APP_USER_DATA,
-                        pid, uid, -1, true) != PackageManager.PERMISSION_GRANTED) {
+                if (!permitted) {
                     throw new SecurityException("PID " + pid + " does not have permission "
                             + android.Manifest.permission.CLEAR_APP_USER_DATA + " to clear data"
                             + " of package " + packageName);
                 }
+                appInfo = applicationInfo;
 
                 final boolean hasInstantMetadata = getPackageManagerInternalLocked()
                         .hasInstantApplicationMetadata(packageName, resolvedUserId);
@@ -4340,7 +4361,8 @@ public class ActivityManagerService extends IActivityManager.Stub
 
             try {
                 // Clear application user data
-                pm.clearApplicationUserData(packageName, localObserver, resolvedUserId);
+                pm.clearApplicationUserData(packageName, localObserver, resolvedUserId,
+                        restorePregrantedPermissions);
 
                 if (appInfo != null) {
                     // Restore already established notification state and permission grants,
