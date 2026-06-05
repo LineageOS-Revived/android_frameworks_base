@@ -733,6 +733,12 @@
       "group": "WM_DEBUG_BOOT",
       "at": "com\/android\/server\/wm\/WindowManagerService.java"
     },
+    "-610155150": {
+      "message": "Adding toast window with non-empty token.",
+      "level": "WARN",
+      "group": "WM_ERROR",
+      "at": "com\/android\/server\/wm\/WindowManagerService.java"
+    },
     "-603199586": {
       "message": "Clearing focused app, displayId=%d",
       "level": "VERBOSE",

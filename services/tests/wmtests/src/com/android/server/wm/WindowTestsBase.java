@@ -52,6 +52,7 @@ import android.view.IDisplayWindowInsetsController;
 import android.view.IWindow;
 import android.view.InsetsSourceControl;
 import android.view.InsetsState;
+import android.view.IWindowSessionCallback;
 import android.view.SurfaceControl.Transaction;
 import android.view.View;
 import android.view.WindowManager;
@@ -186,6 +187,15 @@ class WindowTestsBase extends SystemServiceTestsBase {
             int type, DisplayContent dc, String name) {
         final WindowToken token = createWindowToken(dc, windowingMode, activityType, type);
         return createWindow(parent, type, token, name);
+    }
+
+    static Session createTestSession(ActivityTaskManagerService atms, int pid, int uid) {
+        // This method is a partial backport which omits process creation.
+        return new Session(atms.mWindowManager, new IWindowSessionCallback.Stub() {
+            @Override
+            public void onAnimatorScaleChanged(float scale) {
+            }
+        }, pid, uid);
     }
 
     WindowState createAppWindow(Task task, int type, String name) {

@@ -2946,7 +2946,6 @@ public class AppOpsService extends IAppOpsService.Stub {
             Slog.e(TAG, "checkOperation", e);
             return AppOpsManager.opToDefaultMode(code);
         }
-
         if (isOpRestrictedDueToSuspend(code, packageName, uid)) {
             return AppOpsManager.MODE_IGNORED;
         }
@@ -3116,7 +3115,9 @@ public class AppOpsService extends IAppOpsService.Stub {
             Slog.e(TAG, "noteOperation", e);
             return AppOpsManager.MODE_ERRORED;
         }
-
+        if (isOpRestrictedDueToSuspend(code, packageName, uid)) {
+            return AppOpsManager.MODE_IGNORED;
+        }
         if (proxyAttributionTag != null
                 && !isAttributionTagDefined(packageName, proxyPackageName, proxyAttributionTag)) {
             proxyAttributionTag = null;
