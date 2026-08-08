@@ -1287,6 +1287,7 @@
   <java-symbol type="array" name="vendor_cross_profile_apps" />
   <java-symbol type="array" name="policy_exempt_apps" />
   <java-symbol type="array" name="vendor_policy_exempt_apps" />
+  <java-symbol type="array" name="application_hidden_policy_exempt_apps" />
   <java-symbol type="array" name="cloneable_apps" />
   <java-symbol type="array" name="config_securityStatePackages" />
 
@@ -5377,4 +5378,8 @@
   <java-symbol type="string" name="config_defaultContextualSearchKey" />
   <java-symbol type="string" name="config_defaultContextualSearchEnabled" />
   <java-symbol type="string" name="config_defaultContextualSearchLegacyEnabled" />
+
+  <!-- List of protected packages that require biometric authentication for modification -->
+  <java-symbol type="array" name="config_biometric_protected_package_names" />
+
 </resources>

@@ -173,7 +173,6 @@ interface INotificationManager
     void setOnNotificationPostedTrimFromListener(in INotificationListener token, int trim);
     void setInterruptionFilter(String pkg, int interruptionFilter, boolean fromUser);
 
-    void updateNotificationChannelGroupFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, in NotificationChannelGroup group);
     void updateNotificationChannelFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, in NotificationChannel channel);
     ParceledListSlice getNotificationChannelsFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user);
     ParceledListSlice getNotificationChannelGroupsFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user);
@@ -219,9 +218,9 @@ interface INotificationManager
     void setNotificationPolicyAccessGrantedForUser(String pkg, int userId, boolean granted);
     ZenPolicy getDefaultZenPolicy();
     AutomaticZenRule getAutomaticZenRule(String id);
-    Map<String, AutomaticZenRule> getAutomaticZenRules();
+    ParceledListSlice<AutomaticZenRule.AzrWithId> getAutomaticZenRules();
     // TODO: b/310620812 - Remove getZenRules() when MODES_API is inlined.
-    List<ZenModeConfig.ZenRule> getZenRules();
+    ParceledListSlice<ZenModeConfig.ZenRule> getZenRules();
     String addAutomaticZenRule(in AutomaticZenRule automaticZenRule, String pkg, boolean fromUser);
     boolean updateAutomaticZenRule(String id, in AutomaticZenRule automaticZenRule, boolean fromUser);
     boolean removeAutomaticZenRule(String id, boolean fromUser);

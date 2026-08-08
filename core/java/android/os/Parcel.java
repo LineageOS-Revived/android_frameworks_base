@@ -609,7 +609,6 @@ public final class Parcel {
         // able to print a stack when a Parcel is recycled twice, that
         // is cleared in obtain instead.
 
-        mClassCookies = null;
         freeBuffer();
 
         if (mOwnsNativeParcelObject) {
@@ -851,6 +850,28 @@ public final class Parcel {
     @Nullable
     public final Object getClassCookie(Class clz) {
         return mClassCookies != null ? mClassCookies.get(clz) : null;
+    }
+
+    /** @hide */
+    public void removeClassCookie(Class clz, Object expectedCookie) {
+        if (mClassCookies != null) {
+            Object removedCookie = mClassCookies.remove(clz);
+            if (removedCookie != expectedCookie) {
+                Log.wtf(TAG, "Expected to remove " + expectedCookie + " (with key=" + clz
+                        + ") but instead removed " + removedCookie);
+            }
+        } else {
+            Log.wtf(TAG, "Expected to remove " + expectedCookie + " (with key=" + clz
+                    + ") but no cookies were present");
+        }
+    }
+
+    /**
+     * Whether {@link #setClassCookie} has been called with the specified {@code clz}.
+     * @hide
+     */
+    public boolean hasClassCookie(Class clz) {
+        return mClassCookies != null && mClassCookies.containsKey(clz);
     }
 
     /** @hide */
@@ -5396,9 +5417,11 @@ public final class Parcel {
             nativeFreeBuffer(mNativePtr);
         }
         mReadWriteHelper = ReadWriteHelper.DEFAULT;
+        mClassCookies = null;
     }
 
-    private void destroy() {
+    /** @hide */
+    public void destroy() {
         resetSqaushingState();
         if (mNativePtr != 0) {
             if (mOwnsNativeParcelObject) {
@@ -5460,7 +5483,7 @@ public final class Parcel {
 
     private void readArrayMapInternal(@NonNull ArrayMap<? super String, Object> outVal,
             int size, @Nullable ClassLoader loader) {
-        readArrayMap(outVal, size, /* sorted */ true, /* lazy */ false, loader);
+        readArrayMap(outVal, size, /* sorted */ true, /* lazy */ false, loader, null);
     }
 
     /**
@@ -5470,17 +5493,16 @@ public final class Parcel {
      * @param lazy   Whether to populate the map with lazy {@link Function} objects for
      *               length-prefixed values. See {@link Parcel#readLazyValue(ClassLoader)} for more
      *               details.
-     * @return a count of the lazy values in the map
+     * @param lazyValueCount number of lazy values added here
      * @hide
      */
-    int readArrayMap(ArrayMap<? super String, Object> map, int size, boolean sorted,
-            boolean lazy, @Nullable ClassLoader loader) {
-        int lazyValues = 0;
+    void readArrayMap(ArrayMap<? super String, Object> map, int size, boolean sorted,
+            boolean lazy, @Nullable ClassLoader loader, int[] lazyValueCount) {
         while (size > 0) {
             String key = readString();
             Object value = (lazy) ? readLazyValue(loader) : readValue(loader);
             if (value instanceof LazyValue) {
-                lazyValues++;
+                lazyValueCount[0]++;
             }
             if (sorted) {
                 map.append(key, value);
@@ -5492,7 +5514,6 @@ public final class Parcel {
         if (sorted) {
             map.validate();
         }
-        return lazyValues;
     }
 
     /**

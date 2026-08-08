@@ -16,19 +16,26 @@
 
 package com.android.server.autofill;
 
+import static android.Manifest.permission.INTERACT_ACROSS_USERS;
+
 import static com.android.server.autofill.Helper.sDebug;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
 import android.app.assist.AssistStructure;
 import android.app.assist.AssistStructure.ViewNode;
 import android.app.assist.AssistStructure.WindowNode;
+import android.app.slice.Slice;
+import android.app.slice.SliceItem;
 import android.content.ComponentName;
 import android.content.Context;
+import android.graphics.drawable.Icon;
 import android.hardware.display.DisplayManager;
 import android.metrics.LogMaker;
+import android.os.UserHandle;
 import android.os.UserManager;
 import android.service.autofill.Dataset;
 import android.service.autofill.InternalSanitizer;
@@ -54,7 +61,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 
 public final class Helper {
 
@@ -92,13 +98,34 @@ public final class Helper {
             @UserIdInt int userId, @NonNull RemoteViews rView) {
         final AtomicBoolean permissionsOk = new AtomicBoolean(true);
 
-        rView.visitUris(uri -> {
-            int uriOwnerId = android.content.ContentProvider.getUserIdFromUri(uri);
-            boolean allowed = uriOwnerId == userId;
-            permissionsOk.set(allowed & permissionsOk.get());
-        });
+        rView.visitUris(
+                uri -> {
+                    int uriOwnerId = android.content.ContentProvider.getUserIdFromUri(uri, userId);
+                    boolean allowed = uriOwnerId == userId;
+                    permissionsOk.set(allowed & permissionsOk.get());
+                });
 
         return permissionsOk.get();
+    }
+
+    /**
+     * Creates the context as the foreground user
+     *
+     * <p>Returns the current context as the current foreground user
+     */
+    @RequiresPermission(INTERACT_ACROSS_USERS)
+    public static Context getUserContext(Context context) {
+        int userId = ActivityManager.getCurrentUser();
+        Context c = context.createContextAsUser(UserHandle.of(userId), /* flags= */ 0);
+        if (sDebug) {
+            Slog.d(
+                    TAG,
+                    "Current User: "
+                            + userId
+                            + ", context created as: "
+                            + c.getContentResolver().getUserId());
+        }
+        return c;
     }
 
     /**
@@ -125,6 +152,47 @@ public final class Helper {
         return (ok ? rView : null);
     }
 
+    /**
+     * Checks the URI permissions of the icon in the slice, to see if the current userId is able to
+     * access it.
+     *
+     * <p>Returns null if slice contains user inaccessible icons
+     *
+     * <p>TODO: instead of returning a null Slice when the current userId cannot access an icon,
+     * return a reconstructed Slice without the icons. This is currently non-trivial since there are
+     * no public methods to generically add SliceItems to Slices
+     */
+    public static @Nullable Slice sanitizeSlice(Slice slice) {
+        if (slice == null) {
+            return null;
+        }
+
+        int userId = ActivityManager.getCurrentUser();
+
+        // Recontruct the Slice, filtering out bad icons
+        for (SliceItem sliceItem : slice.getItems()) {
+            if (!sliceItem.getFormat().equals(SliceItem.FORMAT_IMAGE)) {
+                // Not an image slice
+                continue;
+            }
+
+            Icon icon = sliceItem.getIcon();
+            if (icon.getType() != Icon.TYPE_URI
+                    && icon.getType() != Icon.TYPE_URI_ADAPTIVE_BITMAP) {
+                // No URIs to sanitize
+                continue;
+            }
+
+            int iconUriId = android.content.ContentProvider.getUserIdFromUri(icon.getUri(), userId);
+
+            if (iconUriId != userId) {
+                Slog.w(TAG, "sanitizeSlice() user: " + userId + " cannot access icons in Slice");
+                return null;
+            }
+        }
+
+        return slice;
+    }
 
     @Nullable
     static AutofillId[] toArray(@Nullable ArraySet<AutofillId> set) {

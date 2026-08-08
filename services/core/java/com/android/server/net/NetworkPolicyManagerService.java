@@ -38,7 +38,6 @@ import static android.content.Intent.ACTION_PACKAGE_ADDED;
 import static android.content.Intent.ACTION_UID_REMOVED;
 import static android.content.Intent.ACTION_USER_ADDED;
 import static android.content.Intent.ACTION_USER_REMOVED;
-import static android.content.Intent.EXTRA_REPLACING;
 import static android.content.Intent.EXTRA_UID;
 import static android.content.pm.ApplicationInfo.FLAG_INSTALLED;
 import static android.content.pm.ApplicationInfo.PRIVATE_FLAG_HIDDEN;
@@ -1439,21 +1438,16 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
             final int uid = intent.getIntExtra(EXTRA_UID, -1);
             if (uid == -1) return;
 
-            if (intent.getBooleanExtra(EXTRA_REPLACING, false)) {
-                if (LOGV) Slog.v(TAG, "ACTION_PACKAGE_ADDED Not new app, skip it uid=" + uid);
-                return;
-            }
-
             if (ACTION_PACKAGE_ADDED.equals(action)) {
                 // update rules for UID, since it might be subject to
                 // global background data policy
                 // Clear the cache for the app
                 synchronized (mUidRulesFirstLock) {
+                    mInternetPermissionMap.delete(uid);
                     if (!hasInternetPermissionUL(uid) && !isSystemApp(uid)) {
                         Slog.i(TAG, "ACTION_PACKAGE_ADDED for uid=" + uid + ", no INTERNET");
                         addUidPolicy(uid, POLICY_REJECT_ALL);
                     }
-                    mInternetPermissionMap.delete(uid);
                     updateRestrictionRulesForUidUL(uid);
                 }
             }
@@ -3009,10 +3003,15 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                     }
                 } else if (TAG_UID_POLICY.equals(tag)) {
                     int uid = readUidAttribute(in, forRestore, userId);
+                    final int oldPolicy = mUidPolicy.get(uid, POLICY_NONE);
                     final int policy = readIntAttribute(in, ATTR_POLICY);
 
                     if (UserHandle.isApp(uid)) {
-                        setUidPolicyUncheckedUL(uid, policy, false);
+                        if (forRestore) {
+                            setUidPolicyUncheckedUL(uid, oldPolicy, policy, true);
+                        } else {
+                            setUidPolicyUncheckedUL(uid, policy, false);
+                        }
                     } else {
                         Slog.w(TAG, "unable to apply policy to UID " + uid + "; ignoring");
                     }
@@ -3023,8 +3022,13 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                     // TODO: set for other users during upgrade
                     // app policy is deprecated so this is only used in pre system user split.
                     final int uid = UserHandle.getUid(UserHandle.USER_SYSTEM, appId);
+                    final int oldPolicy = mUidPolicy.get(uid, POLICY_NONE);
                     if (UserHandle.isApp(uid)) {
-                        setUidPolicyUncheckedUL(uid, policy, false);
+                        if (forRestore) {
+                            setUidPolicyUncheckedUL(uid, oldPolicy, policy, true);
+                        } else {
+                            setUidPolicyUncheckedUL(uid, policy, false);
+                        }
                     } else {
                         Slog.w(TAG, "unable to apply policy to UID " + uid + "; ignoring");
                     }
@@ -3058,10 +3062,21 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                 final int newPolicy = policy | POLICY_ALLOW_METERED_BACKGROUND;
                 if (LOGV)
                     Log.v(TAG, "new policy for " + uid + ": " + uidPoliciesToString(newPolicy));
-                setUidPolicyUncheckedUL(uid, newPolicy, false);
+                if (forRestore) {
+                    setUidPolicyUncheckedUL(uid, policy, newPolicy, true);
+                } else {
+                    setUidPolicyUncheckedUL(uid, newPolicy, false);
+                }
             } else {
                 Slog.w(TAG, "unable to update policy on UID " + uid);
             }
+        }
+
+        // There is nothing to migrate if coming from pre-12, from nothing, or from a restore.
+        final boolean isMigratingFromAtLeastAndroid12 = version >= VERSION_SUPPORTED_CARRIER_USAGE;
+        if (!forRestore && lineageVersion < LINEAGE_VERSION_REINSTATED_POLICY_REJECT_ALL
+                && isMigratingFromAtLeastAndroid12) {
+            migrateToPolicyRejectAll();
         }
     }
 
@@ -4841,8 +4856,9 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
 
     @GuardedBy("mUidRulesFirstLock")
     private int updateBlockedReasonsForRestrictedModeUL(int uid) {
+        final boolean isBlockedOnAllNetworks = isUidBlockedOnAllNetworks(uid);
         final boolean hasRestrictedModeAccess = hasRestrictedModeAccess(uid)
-                || !isUidBlockedOnAllNetworks(uid);
+                || !isBlockedOnAllNetworks;
         final int oldEffectiveBlockedReasons;
         final int newEffectiveBlockedReasons;
         final int uidRules;
@@ -4872,6 +4888,21 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                     newEffectiveBlockedReasons, oldEffectiveBlockedReasons);
 
             postUidRulesChangedMsg(uid, uidRules);
+        }
+        // The result of this method is used solely to determine whether the UID belongs on the
+        // restricted mode allowlist. If the UID is blocked on all networks, that should never
+        // be the case. However, the blocked state that we assign here determines other things,
+        // like whether an app with ACCESS_NETWORK_STATE can actually see the active network.
+        // As of calyxos#1266, we have been working around this problem, but only for apps
+        // without the INTERNET permission, for which the user has no network toggle available.
+        // TODO: Now that we have decoupled the blocked state from a UID's actual placement on
+        // the restricted mode allowlist (via the lines below), consider looking into a workaround
+        // for apps that *do* have INTERNET permission but have their network toggle turned off,
+        // so that we do not slightly privilege apps with neither INTERNET nor toggle. We might
+        // not be able to do the same thing, though, or the firewall icon may not show such apps
+        // as blocked; further research required.
+        if (isBlockedOnAllNetworks) {
+            return BLOCKED_REASON_RESTRICTED_MODE;
         }
         return newEffectiveBlockedReasons;
     }

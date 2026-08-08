@@ -1697,6 +1697,12 @@ public class WindowManagerService extends IWindowManager.Stub
                     ProtoLog.w(WM_ERROR, "Adding more than one toast window for UID at a time.");
                     return WindowManagerGlobal.ADD_DUPLICATE_ADD;
                 }
+                // Because a WindowToken of TYPE_TOAST only allows one toast window, block the
+                // addition of any other toast window to this token.
+                if (addToastWindowRequiresToken && !token.isEmpty()) {
+                    // ProtoLog.w(WM_ERROR, "Adding toast window with non-empty token.");
+                    return WindowManagerGlobal.ADD_BAD_APP_TOKEN;
+                }
                 // Make sure this happens before we moved focus as one can make the
                 // toast focusable to force it not being hidden after the timeout.
                 // Focusable toasts are always timed out to prevent a focused app to
@@ -2229,6 +2235,8 @@ public class WindowManagerService extends IWindowManager.Stub
             int privateFlagChanges = 0;
             if (attrs != null) {
                 displayPolicy.adjustWindowParamsLw(win, attrs);
+                attrs.privateFlags = sanitizePrivateFlags(attrs.privateFlags,
+                        win.mAttrs.privateFlags, win.getName(), uid, pid);
                 attrs.flags = sanitizeFlagSlippery(attrs.flags, win.getName(), uid, pid);
                 attrs.inputFeatures = sanitizeSpyWindow(attrs.inputFeatures, win.getName(), uid,
                         pid);
@@ -7046,12 +7054,12 @@ public class WindowManagerService extends IWindowManager.Stub
 
     @Override
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
+        if (!DumpUtils.checkDumpPermission(mContext, TAG, pw)) return;
         PriorityDump.dump(mPriorityDumper, fd, pw, args);
     }
 
     @NeverCompile // Avoid size overhead of debugging code.
     private void doDump(FileDescriptor fd, PrintWriter pw, String[] args, boolean useProto) {
-        if (!DumpUtils.checkDumpPermission(mContext, TAG, pw)) return;
         boolean dumpAll = false;
 
         int opti = 0;
@@ -9065,6 +9073,42 @@ public class WindowManagerService extends IWindowManager.Stub
         return inputFeatures;
     }
 
+    private boolean hasFlags(int flags, int mask) {
+        return (flags & mask) != 0;
+    }
+
+    private boolean hasPermission(String permission, int callingPid, int callingUid) {
+        return mContext.checkPermission(permission, callingPid, callingUid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Ensure the caller has the right permissions to be able to set the requested private flags.
+     */
+    private int sanitizePrivateFlags(int newPrivateFlags, int oldPrivateFlags, String windowName,
+            int callingUid, int callingPid) {
+        final int addedPrivateFlags = ~oldPrivateFlags & newPrivateFlags;
+        int sanitizedFlags = newPrivateFlags;
+        if (hasFlags(addedPrivateFlags,
+                (PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY| PRIVATE_FLAG_TRUSTED_OVERLAY))
+                && !hasPermission(android.Manifest.permission.INTERNAL_SYSTEM_WINDOW,
+                    callingUid, callingPid)) {
+            Slog.w(TAG, "Removing PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY or"
+                    + " PRIVATE_FLAG_TRUSTED_OVERLAY from '" + windowName
+                    + "' because it doesn't have INTERNAL_SYSTEM_WINDOW permission");
+            sanitizedFlags &=
+                    ~(PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY | PRIVATE_FLAG_TRUSTED_OVERLAY);
+        }
+        if (hasFlags(addedPrivateFlags, LayoutParams.PRIVATE_FLAG_INTERCEPT_GLOBAL_DRAG_AND_DROP)
+                && !hasPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS, callingUid,
+                    callingPid)) {
+            Slog.w(TAG, "Removing PRIVATE_FLAG_INTERCEPT_GLOBAL_DRAG_AND_DROP from '"
+                + windowName + "' because it doesn't have MANAGE_ACTIVITY_TASKS permission");
+            sanitizedFlags &= ~LayoutParams.PRIVATE_FLAG_INTERCEPT_GLOBAL_DRAG_AND_DROP;
+        }
+        return sanitizedFlags;
+    }
+
     /**
      * Assigns an InputChannel to a SurfaceControl and configures it to receive
      * touch input according to it's on-screen geometry.
@@ -9081,6 +9125,8 @@ public class WindowManagerService extends IWindowManager.Stub
         final InputApplicationHandle applicationHandle;
         final String name;
         Objects.requireNonNull(outInputChannel);
+        Objects.requireNonNull(inputTransferToken);
+
         synchronized (mGlobalLock) {
             WindowState hostWindowState = hostInputTransferToken != null
                     ? mInputToWindowMap.get(hostInputTransferToken.mToken) : null;
@@ -9105,6 +9151,7 @@ public class WindowManagerService extends IWindowManager.Stub
         Objects.requireNonNull(transferFromToken);
         Objects.requireNonNull(transferToToken);
 
+        final int callingUid = Binder.getCallingUid();
         final long identity = Binder.clearCallingIdentity();
         boolean didTransfer;
         try {
@@ -9114,11 +9161,13 @@ public class WindowManagerService extends IWindowManager.Stub
                 // represents an embedded window so transfer from host to embedded.
                 WindowState windowStateTo = mInputToWindowMap.get(transferToToken.mToken);
                 if (windowStateTo != null) {
-                    didTransfer = mEmbeddedWindowController.transferToHost(transferFromToken,
+                    didTransfer = mEmbeddedWindowController.transferToHost(callingUid,
+                            transferFromToken,
                             windowStateTo);
                 } else {
                     WindowState windowStateFrom = mInputToWindowMap.get(transferFromToken.mToken);
-                    didTransfer = mEmbeddedWindowController.transferToEmbedded(windowStateFrom,
+                    didTransfer = mEmbeddedWindowController.transferToEmbedded(callingUid,
+                            windowStateFrom,
                             transferToToken);
                 }
             }

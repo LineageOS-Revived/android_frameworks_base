@@ -65,6 +65,8 @@ import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputBindResult;
+import com.android.internal.inputmethod.InputMethodInfoSafeList;
+import com.android.internal.inputmethod.InputMethodSubtypeSafeList;
 import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.inputmethod.StartInputFlags;
 import com.android.internal.inputmethod.StartInputReason;
@@ -140,18 +142,18 @@ public class ZeroJankProxy extends IInputMethodManager.Stub {
     }
 
     @Override
-    public List<InputMethodInfo> getInputMethodList(
+    public InputMethodInfoSafeList getInputMethodList(
             int userId, @DirectBootAwareness int directBootAwareness) throws RemoteException {
         return mInner.getInputMethodList(userId, directBootAwareness);
     }
 
     @Override
-    public List<InputMethodInfo> getEnabledInputMethodList(int userId) throws RemoteException {
+    public InputMethodInfoSafeList getEnabledInputMethodList(int userId) throws RemoteException {
         return mInner.getEnabledInputMethodList(userId);
     }
 
     @Override
-    public List<InputMethodSubtype> getEnabledInputMethodSubtypeList(String imiId,
+    public InputMethodSubtypeSafeList getEnabledInputMethodSubtypeList(String imiId,
             boolean allowsImplicitlyEnabledSubtypes, int userId)
             throws RemoteException {
         return mInner.getEnabledInputMethodSubtypeList(imiId, allowsImplicitlyEnabledSubtypes,

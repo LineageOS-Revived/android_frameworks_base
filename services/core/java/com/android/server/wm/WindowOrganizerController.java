@@ -59,6 +59,7 @@ import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_RESTORE_TRANSIENT_ORDER;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_SET_ADJACENT_ROOTS;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_SET_ALWAYS_ON_TOP;
+import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_SET_ANIMATION_DELEGATE;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_SET_LAUNCH_ADJACENT_FLAG_ROOT;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_SET_LAUNCH_ROOT;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_SET_REPARENT_LEAF_TASK_IF_RELAUNCH;
@@ -81,6 +82,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
+import android.app.IApplicationThread;
 import android.app.WindowConfiguration;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -1308,6 +1310,18 @@ class WindowOrganizerController extends IWindowOrganizerController.Stub
                 task.setReparentLeafTaskIfRelaunch(hop.isReparentLeafTaskIfRelaunch());
                 break;
             }
+            case HIERARCHY_OP_TYPE_SET_ANIMATION_DELEGATE: {
+                if (transition == null) {
+                    Slog.e(TAG, "No transition to set animation delegate on");
+                    break;
+                }
+                final IBinder appThread = hop.getInsetsFrameOwner();
+                if (appThread == null) {
+                    Slog.e(TAG, "No appThread provided to SET_ANIMATION_DELEGATE");
+                    break;
+                }
+                transition.mRemoteDelegate = IApplicationThread.Stub.asInterface(appThread);
+            }
         }
         return effects;
     }
@@ -1365,8 +1379,10 @@ class WindowOrganizerController extends IWindowOrganizerController.Stub
                 final IBinder callerActivityToken = operation.getActivityToken();
                 final Intent activityIntent = operation.getActivityIntent();
                 final Bundle activityOptions = operation.getBundle();
+                final SafeActivityOptions safeOptions =
+                        SafeActivityOptions.fromBundle(activityOptions, caller.mPid, caller.mUid);
                 final int result = mService.getActivityStartController()
-                        .startActivityInTaskFragment(taskFragment, activityIntent, activityOptions,
+                        .startActivityInTaskFragment(taskFragment, activityIntent, safeOptions,
                                 callerActivityToken, caller.mUid, caller.mPid,
                                 errorCallbackToken);
                 if (!isStartResultSuccessful(result)) {

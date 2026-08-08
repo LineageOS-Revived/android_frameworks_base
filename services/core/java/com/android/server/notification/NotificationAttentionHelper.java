@@ -50,6 +50,7 @@ import android.media.IRingtonePlayer;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -58,9 +59,11 @@ import android.provider.Settings;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Pair;
 import android.util.Slog;
+import android.util.TimeUtils;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 
@@ -158,6 +161,7 @@ public final class NotificationAttentionHelper {
     private final AudioAttributes mInCallNotificationAudioAttributes;
     private final float mInCallNotificationVolume;
     private Binder mCallNotificationToken = null;
+    private final ArrayMap<String, Long> mLastSoundTimestamps = new ArrayMap<>();
     private LineageNotificationLights mLineageNotificationLights;
 
     // Settings flags
@@ -323,6 +327,7 @@ public final class NotificationAttentionHelper {
                     SettingsObserver.NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED_URI, false,
                     mSettingsObserver, UserHandle.USER_ALL);
         }
+        mSettingsObserver.onChange(false, null);
     }
 
     private void loadUserSettings() {
@@ -429,7 +434,8 @@ public final class NotificationAttentionHelper {
                 boolean vibrateOnly =
                         hasValidVibrate && mNotificationCooldownVibrateUnlocked && mUserPresent;
                 boolean hasAudibleAlert = hasValidSound || hasValidVibrate;
-                if (hasAudibleAlert && !shouldMuteNotificationLocked(record, signals)) {
+                if (hasAudibleAlert && !shouldMuteNotificationLocked(record, signals)
+                        && !isInSoundTimeoutPeriod(record)) {
                     if (!sentAccessibilityEvent) {
                         sendAccessibilityEvent(record);
                         sentAccessibilityEvent = true;
@@ -520,6 +526,10 @@ public final class NotificationAttentionHelper {
                 }
             }
         }
+        if (buzz || beep) {
+            mLastSoundTimestamps.put(generateLastSoundTimeoutKey(record),
+                    SystemClock.elapsedRealtime());
+        }
         final int buzzBeepBlinkLoggingCode =
                 (buzz ? 1 : 0) | (beep ? 2 : 0) | (blink ? 4 : 0) | getPoliteBit(record);
         if (buzzBeepBlinkLoggingCode > 0) {
@@ -538,6 +548,24 @@ public final class NotificationAttentionHelper {
             }
         }
         return buzzBeepBlinkLoggingCode;
+    }
+
+    private boolean isInSoundTimeoutPeriod(NotificationRecord record) {
+        long timeoutMillis = mNMP.getNotificationSoundTimeout(
+                record.getSbn().getPackageName(), record.getSbn().getUid());
+        if (timeoutMillis == 0) {
+            return false;
+        }
+
+        Long value = mLastSoundTimestamps.get(generateLastSoundTimeoutKey(record));
+        if (value == null) {
+            return false;
+        }
+        return SystemClock.elapsedRealtime() - value < timeoutMillis;
+    }
+
+    private String generateLastSoundTimeoutKey(NotificationRecord record) {
+        return record.getSbn().getPackageName() + "|" + record.getSbn().getUid();
     }
 
     private int getPoliteBit(final NotificationRecord record) {
@@ -1098,6 +1126,14 @@ public final class NotificationAttentionHelper {
         pw.print(prefix);
         pw.println("  mNotificationPulseEnabled=" + mNotificationPulseEnabled);
 
+        long now = SystemClock.elapsedRealtime();
+        pw.println("\n  Last notification sound timestamps:");
+        for (Map.Entry<String, Long> entry : mLastSoundTimestamps.entrySet()) {
+            pw.print("    " + entry.getKey() + " -> ");
+            TimeUtils.formatDuration(entry.getValue(), now, pw);
+            pw.println(" ago");
+        }
+
         int N = mLights.size();
         if (N > 0) {
             pw.print(prefix);
@@ -1566,7 +1602,7 @@ public final class NotificationAttentionHelper {
 
         @Override
         public void onChange(boolean selfChange, Uri uri) {
-            if (NOTIFICATION_LIGHT_PULSE_URI.equals(uri)) {
+            if (uri == null || NOTIFICATION_LIGHT_PULSE_URI.equals(uri)) {
                 boolean pulseEnabled = Settings.System.getIntForUser(
                         mContext.getContentResolver(),
                         Settings.System.NOTIFICATION_LIGHT_PULSE, 0,
@@ -1578,7 +1614,7 @@ public final class NotificationAttentionHelper {
                 }
             }
             if (Flags.politeNotifications()) {
-                if (NOTIFICATION_COOLDOWN_ENABLED_URI.equals(uri)) {
+                if (uri == null || NOTIFICATION_COOLDOWN_ENABLED_URI.equals(uri)) {
                     mNotificationCooldownEnabled = Settings.System.getIntForUser(
                             mContext.getContentResolver(),
                             Settings.System.NOTIFICATION_COOLDOWN_ENABLED,
@@ -1596,7 +1632,7 @@ public final class NotificationAttentionHelper {
                         mNotificationCooldownForWorkEnabled = false;
                     }
                 }
-                if (NOTIFICATION_COOLDOWN_ALL_URI.equals(uri)) {
+                if (uri == null || NOTIFICATION_COOLDOWN_ALL_URI.equals(uri)) {
                     mNotificationCooldownApplyToAll = Settings.System.getIntForUser(
                             mContext.getContentResolver(),
                             Settings.System.NOTIFICATION_COOLDOWN_ALL,
@@ -1605,7 +1641,7 @@ public final class NotificationAttentionHelper {
                     mStrategy.setApplyCooldownPerPackage(mNotificationCooldownApplyToAll);
                 }
                 if (Flags.vibrateWhileUnlocked()) {
-                    if (NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED_URI.equals(uri)) {
+                    if (uri == null || NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED_URI.equals(uri)) {
                         mNotificationCooldownVibrateUnlocked = Settings.System.getIntForUser(
                             mContext.getContentResolver(),
                             Settings.System.NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED,

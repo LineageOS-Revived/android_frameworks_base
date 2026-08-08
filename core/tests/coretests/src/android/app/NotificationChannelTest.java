@@ -231,6 +231,63 @@ public class NotificationChannelTest {
     }
 
     @Test
+    public void testSetId_longStringIsTrimmed() {
+        NotificationChannel channel =
+                new NotificationChannel("id", "name", NotificationManager.IMPORTANCE_DEFAULT);
+        String longId = Strings.repeat("A", NotificationChannel.MAX_TEXT_LENGTH + 10);
+
+        channel.setId(longId);
+
+        assertThat(channel.getId()).hasLength(NotificationChannel.MAX_TEXT_LENGTH);
+        assertThat(channel.getId())
+                .isEqualTo(longId.substring(0, NotificationChannel.MAX_TEXT_LENGTH));
+    }
+
+    @Test
+    public void testSetConversationId_longStringsAreTrimmed() {
+        NotificationChannel channel =
+                new NotificationChannel("id", "name", NotificationManager.IMPORTANCE_DEFAULT);
+        String longParentId = Strings.repeat("P", NotificationChannel.MAX_TEXT_LENGTH + 10);
+        String longConversationId = Strings.repeat("C", NotificationChannel.MAX_TEXT_LENGTH + 10);
+
+        channel.setConversationId(longParentId, longConversationId);
+
+        assertThat(channel.getParentChannelId()).hasLength(NotificationChannel.MAX_TEXT_LENGTH);
+        assertThat(channel.getParentChannelId())
+                .isEqualTo(longParentId.substring(0, NotificationChannel.MAX_TEXT_LENGTH));
+        assertThat(channel.getConversationId()).hasLength(NotificationChannel.MAX_TEXT_LENGTH);
+        assertThat(channel.getConversationId())
+                .isEqualTo(longConversationId.substring(0, NotificationChannel.MAX_TEXT_LENGTH));
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API,
+            Flags.FLAG_NOTIF_CHANNEL_CROP_VIBRATION_EFFECTS})
+    public void testLongVibrationFields_canWriteToXml() throws Exception {
+        NotificationChannel channel = new NotificationChannel("id", "name", 3);
+        // populate pattern with contents
+        long[] pattern = new long[65550 / 2];
+        for (int i = 0; i < pattern.length; i++) {
+            pattern[i] = 100;
+        }
+        channel.setVibrationPattern(pattern);  // with flag on, also sets effect
+
+        // Send it through parceling & unparceling to simulate being passed through a binder call
+        NotificationChannel fromParcel = writeToAndReadFromParcel(channel);
+        assertThat(fromParcel.getVibrationPattern().length).isEqualTo(
+                NotificationChannel.MAX_VIBRATION_LENGTH);
+
+        // Confirm that this also survives writing to & restoring from XML
+        NotificationChannel result = backUpAndRestore(fromParcel);
+        assertThat(result.getVibrationPattern().length).isEqualTo(
+                NotificationChannel.MAX_VIBRATION_LENGTH);
+        assertThat(result.getVibrationEffect()).isNotNull();
+        assertThat(result.getVibrationEffect()
+                .computeCreateWaveformOffOnTimingsOrNull())
+                .isEqualTo(result.getVibrationPattern());
+    }
+
+    @Test
     public void testRestoreSoundUri_customLookup() throws Exception {
         Uri uriToBeRestoredUncanonicalized = Uri.parse("content://media/1");
         Uri uriToBeRestoredCanonicalized = Uri.parse("content://media/1?title=Song&canonical=1");

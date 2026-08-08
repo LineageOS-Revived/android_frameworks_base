@@ -693,13 +693,18 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         params.appLabel = TextUtils.trimToSize(params.appLabel,
                 PackageItemInfo.MAX_SAFE_LABEL_LENGTH);
 
-        // Validate installer package name.
+        // Validate requested installer package name.
         if (params.installerPackageName != null && !isValidPackageName(
                 params.installerPackageName)) {
             params.installerPackageName = null;
         }
 
-        var requestedInstallerPackageName =
+        // Validate installer package name.
+        if (installerPackageName != null && !isValidPackageName(installerPackageName)) {
+            installerPackageName = null;
+        }
+
+        String requestedInstallerPackageName =
                 params.installerPackageName != null ? params.installerPackageName
                         : installerPackageName;
 
@@ -939,6 +944,14 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
                 // For now, installs to adopted media are treated as internal from
                 // an install flag point-of-view.
                 params.installFlags |= PackageManager.INSTALL_INTERNAL;
+                // Check if volumeUuid value is valid, else fail.
+                try {
+                    StorageManager.convert(params.volumeUuid);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid volumeUuid value in session "
+                            + "params: "
+                            + params.volumeUuid);
+                }
             } else {
                 params.installFlags |= PackageManager.INSTALL_INTERNAL;
 
@@ -1010,6 +1023,8 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         }
 
         final var dpmi = LocalServices.getService(DevicePolicyManagerInternal.class);
+        // Only the system should be able to set this flag - so ensure it is unset when not needed.
+        params.installFlags &= ~PackageManager.INSTALL_FROM_MANAGED_USER_OR_PROFILE;
         if (dpmi != null && dpmi.isUserOrganizationManaged(userId)) {
             params.installFlags |= PackageManager.INSTALL_FROM_MANAGED_USER_OR_PROFILE;
         }
