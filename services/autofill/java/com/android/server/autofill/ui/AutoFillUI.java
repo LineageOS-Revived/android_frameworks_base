@@ -76,7 +76,6 @@ public final class AutoFillUI {
 
     private final MetricsLogger mMetricsLogger = new MetricsLogger();
 
-    private final @NonNull OverlayControl mOverlayControl;
     private final @NonNull UiModeManagerInternal mUiModeMgr;
 
     private @Nullable Runnable mCreateFillUiRunnable;
@@ -102,7 +101,6 @@ public final class AutoFillUI {
 
     public AutoFillUI(@NonNull Context context) {
         mContext = context;
-        mOverlayControl = new OverlayControl(context);
         mUiModeMgr = LocalServices.getService(UiModeManagerInternal.class);
     }
 
@@ -221,7 +219,7 @@ public final class AutoFillUI {
             }
             hideAllUiThread(callback);
             mFillUi = new FillUi(mContext, response, focusedId,
-                    filterText, mOverlayControl, serviceLabel, serviceIcon,
+                    filterText, serviceLabel, serviceIcon,
                     mUiModeMgr.isNightMode(),
                     new FillUi.Callback() {
                 @Override
@@ -339,7 +337,7 @@ public final class AutoFillUI {
             hideAllUiThread(callback);
             mSaveUiCallback = callback;
             mSaveUi = new SaveUi(mContext, pendingSaveUi, serviceLabel, serviceIcon,
-                    servicePackageName, componentName, info, valueFinder, mOverlayControl,
+                    servicePackageName, componentName, info, valueFinder,
                     new SaveUi.OnSaveListener() {
                 @Override
                 public void onSave() {
@@ -409,7 +407,7 @@ public final class AutoFillUI {
             }
             hideAllUiThread(callback);
             mFillDialog = new DialogFillUi(mContext, response, focusedId, filterText,
-                    serviceIcon, servicePackageName, componentName, mOverlayControl,
+                    serviceIcon, servicePackageName, componentName,
                     mUiModeMgr.isNightMode(), new DialogFillUi.UiCallback() {
                         @Override
                         public void onResponsePicked(FillResponse response) {

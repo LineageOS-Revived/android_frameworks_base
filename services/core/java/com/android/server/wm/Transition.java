@@ -836,16 +836,26 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
         }
 
         // Update the input-sink (touch-blocking) state now that the animation is finished.
-        SurfaceControl.Transaction inputSinkTransaction = null;
+        boolean scheduleAnimation = false;
         for (int i = 0; i < mParticipants.size(); ++i) {
-            final ActivityRecord ar = mParticipants.valueAt(i).asActivityRecord();
-            if (ar == null || !ar.isVisible() || ar.getParent() == null) continue;
-            if (inputSinkTransaction == null) {
-                inputSinkTransaction = new SurfaceControl.Transaction();
+            final WindowContainer wc = mParticipants.valueAt(i);
+            final ActivityRecord ar = wc.asActivityRecord();
+            if (ar != null && ar.isVisible() && ar.getParent() != null) {
+                scheduleAnimation = true;
+                ar.mActivityRecordInputSink.applyChangesToSurfaceIfChanged(
+                        ar.getPendingTransaction());
             }
-            ar.mActivityRecordInputSink.applyChangesToSurfaceIfChanged(inputSinkTransaction);
+            final Task task = wc.asTask();
+            if (task != null && task.isVisible() && task.getParent() != null
+                    && task.mTaskInputSink != null) {
+                scheduleAnimation = true;
+                task.mTaskInputSink.applyChangesToSurfaceIfChanged(
+                        task.getPendingTransaction());
+            }
         }
-        if (inputSinkTransaction != null) inputSinkTransaction.apply();
+        // To apply pending transactions.
+        if (scheduleAnimation) mController.mAtm.mWindowManager.scheduleAnimationLocked();
+
 
         // Always schedule stop processing when transition finishes because activities don't
         // stop while they are in a transition thus their stop could still be pending.
