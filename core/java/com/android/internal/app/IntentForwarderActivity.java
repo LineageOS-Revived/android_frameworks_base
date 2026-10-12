@@ -96,7 +96,7 @@ public class IntentForwarderActivity extends Activity  {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mInjector = createInjector();
-        mExecutorService = Executors.newSingleThreadExecutor();
+        mExecutorService = mInjector.getExecutorService();
 
         Intent intentReceived = getIntent();
         String className = intentReceived.getComponent().getClassName();
@@ -266,8 +266,7 @@ public class IntentForwarderActivity extends Activity  {
     }
 
     private boolean isDeviceProvisioned() {
-        return Settings.Global.getInt(getContentResolver(),
-                Settings.Global.DEVICE_PROVISIONED, /* def= */ 0) != 0;
+        return mInjector.isDeviceProvisioned();
     }
 
     private boolean isTextMessageIntent(Intent intent) {
@@ -312,7 +311,6 @@ public class IntentForwarderActivity extends Activity  {
             return null;
         }
         if (forwardIntent.getSelector() != null) {
-            sanitizeIntent(forwardIntent.getSelector());
             if (!canForwardInner(forwardIntent.getSelector(), sourceUserId, targetUserId,
                     packageManager, contentResolver)) {
                 return null;
@@ -370,12 +368,19 @@ public class IntentForwarderActivity extends Activity  {
     }
 
     /**
-     * Sanitize the intent in place.
+     * Sanitize the intent and sanitize its selector in place.
      */
     private static void sanitizeIntent(Intent intent) {
         // Apps should not be allowed to target a specific package/ component in the target user.
         intent.setPackage(null);
         intent.setComponent(null);
+
+        Intent selector = intent.getSelector();
+        if (selector != null) {
+            selector.setPackage(null);
+            selector.setComponent(null);
+            selector.setSelector(null);
+        }
     }
 
     protected MetricsLogger getMetricsLogger() {
@@ -419,6 +424,17 @@ public class IntentForwarderActivity extends Activity  {
         public void showToast(int messageId, int duration) {
             Toast.makeText(IntentForwarderActivity.this, getString(messageId), duration).show();
         }
+
+        @Override
+        public ExecutorService getExecutorService() {
+            return Executors.newSingleThreadExecutor();
+        }
+
+        @Override
+        public boolean isDeviceProvisioned() {
+            return Settings.Global.getInt(getContentResolver(),
+                    Settings.Global.DEVICE_PROVISIONED, /* def= */ 0) != 0;
+        }
     }
 
     public interface Injector {
@@ -431,5 +447,9 @@ public class IntentForwarderActivity extends Activity  {
         CompletableFuture<ResolveInfo> resolveActivityAsUser(Intent intent, int flags, int userId);
 
         void showToast(@StringRes int messageId, int duration);
+
+        ExecutorService getExecutorService();
+
+        boolean isDeviceProvisioned();
     }
 }

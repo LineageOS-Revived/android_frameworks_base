@@ -83,6 +83,8 @@ import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_NUMERIC;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_NUMERIC_COMPLEX;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_SOMETHING;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_UNSPECIFIED;
+import static android.app.admin.DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT;
+import static android.app.admin.DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED;
 import static android.app.admin.DevicePolicyManager.PERSONAL_APPS_NOT_SUSPENDED;
 import static android.app.admin.DevicePolicyManager.PERSONAL_APPS_SUSPENDED_EXPLICITLY;
 import static android.app.admin.DevicePolicyManager.PERSONAL_APPS_SUSPENDED_PROFILE_TIMEOUT;
@@ -13829,6 +13831,10 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
             throws RemoteException {
         Objects.requireNonNull(callback);
 
+        Preconditions.checkArgument(grantState == PERMISSION_GRANT_STATE_GRANTED
+                || grantState == DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED
+                || grantState == PERMISSION_GRANT_STATE_DEFAULT);
+
         final CallerIdentity caller = getCallerIdentity(admin, callerPackage);
         Preconditions.checkCallAuthorization((caller.hasAdminComponent()
                 && (isProfileOwner(caller) || isDeviceOwner(caller)))
@@ -17476,12 +17482,19 @@ public class DevicePolicyManagerService extends BaseIDevicePolicyManager {
                     ? Collections.emptySet()
                     : mOverlayPackagesProvider.getNonRequiredApps(
                             admin, caller.getUserId(), ACTION_PROVISION_MANAGED_PROFILE);
-            userInfo = mUserManager.createProfileForUserEvenWhenDisallowed(
-                    provisioningParams.getProfileName(),
-                    UserManager.USER_TYPE_PROFILE_MANAGED,
-                    UserInfo.FLAG_DISABLED,
-                    caller.getUserId(),
-                    nonRequiredApps.toArray(new String[nonRequiredApps.size()]));
+            try {
+                userInfo = mUserManagerInternal.createProfileForUserEvenWhenDisallowed(
+                        provisioningParams.getProfileName(),
+                        UserManager.USER_TYPE_PROFILE_MANAGED,
+                        UserInfo.FLAG_DISABLED,
+                        caller.getUserId(),
+                        nonRequiredApps.toArray(new String[nonRequiredApps.size()]),
+                        /* token= */ null,
+                        UserRestrictionsUtils.getDefaultEnabledForManagedProfiles()
+                                .toArray(new String[0]));
+            } catch (UserManager.CheckedUserOperationException e) {
+                userInfo = null;
+            }
             if (userInfo == null) {
                 throw new ServiceSpecificException(
                         PROVISIONING_RESULT_PROFILE_CREATION_FAILED,
