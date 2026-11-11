@@ -154,6 +154,7 @@ import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledAfter;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.IIntentReceiver;
@@ -8411,11 +8412,11 @@ public class PackageManagerService extends IPackageManager.Stub
             String resolvedType, int flags, int userId, int callingUid,
             boolean includeInstantApps) {
         if (!mUserManager.exists(userId)) return Collections.emptyList();
-        mPermissionManager.enforceCrossUserOrProfilePermission(callingUid,
+        mPermissionManager.enforceCrossUserOrProfilePermission(Binder.getCallingUid(),
                 userId,
                 false /*requireFullPermission*/,
                 false /*checkShell*/,
-                "query intent receivers");
+                "query intent services");
         final String instantAppPkgName = getInstantAppPackageName(callingUid);
         flags = updateFlagsForResolve(flags, userId, callingUid, includeInstantApps,
                 false /* isImplicitImageCaptureIntentAndNotSetByDpc */);
@@ -8834,7 +8835,7 @@ public class PackageManagerService extends IPackageManager.Stub
         final boolean listUninstalled = (flags & MATCH_KNOWN_PACKAGES) != 0;
 
         mPermissionManager.enforceCrossUserPermission(
-            callingUid,
+            Binder.getCallingUid(),
             userId,
             false /* requireFullPermission */,
             false /* checkShell */,
@@ -9062,10 +9063,17 @@ public class PackageManagerService extends IPackageManager.Stub
     }
 
     private ProviderInfo resolveContentProviderInternal(String name, int flags, int userId) {
-        if (!mUserManager.exists(userId)) return null;
         final int callingUid = Binder.getCallingUid();
+        // Callers of this API may not always separate the userID and authority. Let's parse it
+        // before resolving
+        String authorityWithoutUserId = ContentProvider.getAuthorityWithoutUserId(name);
+        userId = ContentProvider.getUserIdFromAuthority(name, userId);
+
+        if (!mUserManager.exists(userId)) return null;
         flags = updateFlagsForComponent(flags, userId);
-        final ProviderInfo providerInfo = mComponentResolver.queryProvider(name, flags, userId);
+
+        final ProviderInfo providerInfo = mComponentResolver.queryProvider(
+                authorityWithoutUserId, flags, userId);
         boolean checkedGrants = false;
         if (providerInfo != null) {
             // Looking for cross-user grants before enforcing the typical cross-users permissions
@@ -17489,6 +17497,10 @@ public class PackageManagerService extends IPackageManager.Stub
         }
 
         String pkgName = res.name = parsedPackage.getPackageName();
+        if (isPackageDeviceAdmin(pkgName, args.user.getIdentifier()) && onExternal) {
+            throw new PrepareFailure(INSTALL_FAILED_INVALID_INSTALL_LOCATION,
+                    "Device Admin can only be installed on internal storage.");
+        }
         if (parsedPackage.isTestOnly()) {
             if ((installFlags & PackageManager.INSTALL_ALLOW_TEST) == 0) {
                 throw new PrepareFailure(INSTALL_FAILED_TEST_ONLY, "installPackageLI");
@@ -18672,7 +18684,7 @@ public class PackageManagerService extends IPackageManager.Stub
         return isPackageDeviceAdmin(packageName, UserHandle.USER_ALL);
     }
 
-    private boolean isPackageDeviceAdmin(String packageName, int userId) {
+    boolean isPackageDeviceAdmin(String packageName, int userId) {
         IDevicePolicyManager dpm = IDevicePolicyManager.Stub.asInterface(
                 ServiceManager.getService(Context.DEVICE_POLICY_SERVICE));
         try {
